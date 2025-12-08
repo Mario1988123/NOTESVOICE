@@ -1,0 +1,64 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <!-- Notepad icon -->
+        <path
+            android:fillColor="#FFB300"
+            android:pathData="M30,10 L78,10 C80.2,10 82,11.8 82,14 L82,94 C82,96.2 80.2,98 78,98 L30,98 C27.8,98 26,96.2 26,94 L26,14 C26,11.8 27.8,10 30,10 Z" />
+
+        <!-- Spiral binding holes -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,16 C32,17.1 31.1,18 30,18 C28.9,18 28,17.1 28,16 C28,14.9 28.9,14 30,14 C31.1,14 32,14.9 32,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M42,16 C42,17.1 41.1,18 40,18 C38.9,18 38,17.1 38,16 C38,14.9 38.9,14 40,14 C41.1,14 42,14.9 42,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M52,16 C52,17.1 51.1,18 50,18 C48.9,18 48,17.1 48,16 C48,14.9 48.9,14 50,14 C51.1,14 52,14.9 52,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M62,16 C62,17.1 61.1,18 60,18 C58.9,18 58,17.1 58,16 C58,14.9 58.9,14 60,14 C61.1,14 62,14.9 62,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M72,16 C72,17.1 71.1,18 70,18 C68.9,18 68,17.1 68,16 C68,14.9 68.9,14 70,14 C71.1,14 72,14.9 72,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M80,16 C80,17.1 79.1,18 78,18 C76.9,18 76,17.1 76,16 C76,14.9 76.9,14 78,14 C79.1,14 80,14.9 80,16 Z" />
+
+        <!-- Lines on the notepad -->
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,30 L74,30 L74,32 L34,32 Z" />
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,40 L74,40 L74,42 L34,42 Z" />
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,50 L74,50 L74,52 L34,52 Z" />
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,60 L74,60 L74,62 L34,62 Z" />
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,70 L74,70 L74,72 L34,72 Z" />
+        <path
+            android:fillColor="#E0E0E0"
+            android:pathData="M34,80 L74,80 L74,82 L34,82 Z" />
+
+        <!-- Microphone icon (for voice magic) -->
+        <path
+            android:fillColor="#FF6200"
+            android:pathData="M64,75 C67,75 69.5,72.5 69.5,69.5 L69.5,60 C69.5,57 67,54.5 64,54.5 C61,54.5 58.5,57 58.5,60 L58.5,69.5 C58.5,72.5 61,75 64,75 Z" />
+        <path
+            android:fillColor="#FF6200"
+            android:pathData="M72,64 L72,69.5 C72,74 68.5,77.5 64,77.5 C59.5,77.5 56,74 56,69.5 L56,64 L54,64 L54,69.5 C54,75.3 58.5,80 64,80.5 L64,84 L60,84 L60,86 L68,86 L68,84 L64,84 L64,80.5 C69.5,80 74,75.3 74,69.5 L74,64 L72,64 Z" />
+    </group>
+</vector>
