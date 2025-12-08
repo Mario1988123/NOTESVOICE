@@ -93,14 +93,26 @@ app/
 
 ## 🛠️ Construcción del Proyecto
 
-### Opción 1: Android Studio
+### Opción 1: Descargar desde GitHub Actions (MÁS FÁCIL) ✅
+**No necesitas instalar nada, GitHub compila automáticamente por ti:**
+
+1. Ve a la pestaña **Actions** en este repositorio de GitHub
+2. Selecciona el workflow **Android CI**
+3. Haz click en la última ejecución exitosa (✅ verde)
+4. Baja hasta **Artifacts**
+5. Descarga **app-debug.apk**
+6. Instala el APK en tu dispositivo Android
+
+Ver instrucciones detalladas en [.github/INSTRUCTIONS.md](.github/INSTRUCTIONS.md)
+
+### Opción 2: Android Studio
 1. Abre Android Studio
 2. File → Open → Selecciona la carpeta del proyecto
 3. Espera a que Gradle sincronice
 4. Conecta un dispositivo o inicia un emulador
 5. Run → Run 'app'
 
-### Opción 2: Línea de comandos
+### Opción 3: Línea de comandos
 ```bash
 # Compilar el proyecto
 ./gradlew build
@@ -112,6 +124,8 @@ app/
 ./gradlew assembleDebug
 # El APK estará en: app/build/outputs/apk/debug/app-debug.apk
 ```
+
+**NOTA**: La compilación automática en GitHub Actions se ejecuta cada vez que haces push a cualquier rama.
 
 ## 🎨 Personalización
 
