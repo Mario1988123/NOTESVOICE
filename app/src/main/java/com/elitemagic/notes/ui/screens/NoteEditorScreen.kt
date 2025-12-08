@@ -53,15 +53,11 @@ fun NoteEditorScreen(
     var content by remember { mutableStateOf(note?.content ?: "") }
     var isDrawingMode by remember { mutableStateOf(false) }
     var drawingPaths by remember { mutableStateOf<List<DrawingPath>>(emptyList()) }
-    var currentPath by remember { mutableStateOf<MutableList<DrawingPoint>>(mutableListOf()) }
+    var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
 
     // Drawing options
     var strokeWidth by remember { mutableStateOf(5f) }
     var selectedColor by remember { mutableStateOf(Color.Black) }
-
-    // Secret activation: Triple tap on title area
-    var tapCount by remember { mutableStateOf(0) }
-    var lastTapTime by remember { mutableStateOf(0L) }
 
     val isListening by voiceManager.isListening.collectAsState()
     val recognizedText by voiceManager.recognizedText.collectAsState()
@@ -116,8 +112,24 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
-                    // Hidden microphone - removed from UI for magic tricks
-                    // Activated by triple tap on title area
+                    // Microphone button with T icon
+                    IconButton(onClick = {
+                        if (hasAudioPermission) {
+                            if (isListening) {
+                                voiceManager.stopListening()
+                            } else {
+                                voiceManager.startContinuousListening()
+                            }
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Activar/Desactivar micrófono",
+                            tint = if (isListening) Color.Red else Color.Gray
+                        )
+                    }
 
                     IconButton(onClick = { isDrawingMode = !isDrawingMode }) {
                         Icon(
@@ -153,65 +165,31 @@ fun NoteEditorScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // Title field with secret triple-tap activation for voice
-            Box(
+            // Title field
+            TextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = {
+                    Text(
+                        "Título",
+                        color = Color.LightGray,
+                        fontSize = 20.sp
+                    )
+                },
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Normal
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                val currentTime = System.currentTimeMillis()
-                                if (currentTime - lastTapTime < 500) {
-                                    tapCount++
-                                    if (tapCount >= 2) {
-                                        // Triple tap detected - activate voice
-                                        if (hasAudioPermission) {
-                                            if (isListening) {
-                                                voiceManager.stopListening()
-                                            } else {
-                                                voiceManager.startContinuousListening()
-                                            }
-                                        } else {
-                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                        }
-                                        tapCount = 0
-                                    }
-                                } else {
-                                    tapCount = 0
-                                }
-                                lastTapTime = currentTime
-                            },
-                            onDrag = { _, _ -> },
-                            onDragEnd = { }
-                        )
-                    }
-            ) {
-                TextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    placeholder = {
-                        Text(
-                            "Título",
-                            color = Color.LightGray,
-                            fontSize = 20.sp,
-                            fontWeight = if (isListening) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 20.sp,
-                        fontWeight = if (isListening) FontWeight.Bold else FontWeight.Normal
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-            }
+                    .padding(horizontal = 16.dp)
+            )
 
             Text(
                 text = "8 de diciembre 9:00  |  0 caracteres",
@@ -222,32 +200,61 @@ fun NoteEditorScreen(
 
             Divider(color = Color.LightGray, thickness = 0.5.dp)
 
-            // Content area
-            if (isDrawingMode) {
-                DrawingCanvas(
-                    paths = drawingPaths,
-                    currentPath = currentPath,
-                    currentColor = selectedColor,
-                    currentStrokeWidth = strokeWidth,
-                    onPathUpdate = { newPoint ->
-                        currentPath.add(newPoint)
+            // Content area - Text and Drawing together
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                // Text field always visible
+                TextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    placeholder = {
+                        Text(
+                            "Empieza a escribir",
+                            color = Color.LightGray
+                        )
                     },
-                    onPathEnd = {
-                        if (currentPath.isNotEmpty()) {
-                            drawingPaths = drawingPaths + DrawingPath(
-                                points = currentPath.toList(),
-                                color = selectedColor.value.toLong(),
-                                strokeWidth = strokeWidth
-                            )
-                            currentPath.clear()
-                        }
-                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    enabled = !isDrawingMode,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
                 )
 
-                // Drawing toolbar with color and stroke options
+                // Drawing canvas on top when drawing mode is active
+                if (isDrawingMode) {
+                    DrawingCanvas(
+                        paths = drawingPaths,
+                        currentPath = currentPath,
+                        currentColor = selectedColor,
+                        currentStrokeWidth = strokeWidth,
+                        onPathUpdate = { newPoint ->
+                            currentPath = currentPath.toMutableList().apply { add(newPoint) }
+                        },
+                        onPathEnd = {
+                            if (currentPath.isNotEmpty()) {
+                                drawingPaths = drawingPaths + DrawingPath(
+                                    points = currentPath,
+                                    color = selectedColor.value.toLong(),
+                                    strokeWidth = strokeWidth
+                                )
+                                currentPath = emptyList()
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Drawing toolbar with color and stroke options (only show when drawing mode is active)
+            if (isDrawingMode) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -293,35 +300,13 @@ fun NoteEditorScreen(
 
                             IconButton(onClick = {
                                 drawingPaths = emptyList()
-                                currentPath.clear()
+                                currentPath = emptyList()
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Limpiar", tint = Color.Gray)
                             }
                         }
                     }
                 }
-            } else {
-                TextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    placeholder = {
-                        Text(
-                            "Empieza a escribir",
-                            color = Color.LightGray
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
-                        .verticalScroll(rememberScrollState())
-                )
             }
         }
     }
@@ -388,7 +373,7 @@ fun DrawingCanvas(
 ) {
     Canvas(
         modifier = modifier
-            .background(Color.White)
+            .background(Color.Transparent)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { offset ->
