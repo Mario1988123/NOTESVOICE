@@ -144,7 +144,7 @@ fun NoteCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 120.dp, max = 200.dp)
+            .heightIn(min = 80.dp, max = 140.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
@@ -157,7 +157,7 @@ fun NoteCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp)
+                .padding(10.dp)
         ) {
             if (note.title.isNotEmpty()) {
                 Text(
@@ -166,15 +166,17 @@ fun NoteCard(
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    fontSize = 15.sp,
                     color = Color.Black
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
             }
 
             Text(
                 text = note.content,
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = if (note.title.isEmpty()) 8 else 6,
+                fontSize = 13.sp,
+                maxLines = if (note.title.isEmpty()) 6 else 4,
                 overflow = TextOverflow.Ellipsis,
                 color = Color.DarkGray
             )

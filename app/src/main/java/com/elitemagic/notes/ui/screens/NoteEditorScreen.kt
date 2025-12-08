@@ -6,9 +6,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -50,6 +54,10 @@ fun NoteEditorScreen(
     var isDrawingMode by remember { mutableStateOf(false) }
     var drawingPaths by remember { mutableStateOf<List<DrawingPath>>(emptyList()) }
     var currentPath by remember { mutableStateOf<MutableList<DrawingPoint>>(mutableListOf()) }
+
+    // Drawing options
+    var strokeWidth by remember { mutableStateOf(5f) }
+    var selectedColor by remember { mutableStateOf(Color.Black) }
 
     // Secret activation: Triple tap on title area
     var tapCount by remember { mutableStateOf(0) }
@@ -185,12 +193,13 @@ fun NoteEditorScreen(
                         Text(
                             "Título",
                             color = Color.LightGray,
-                            fontSize = 20.sp
+                            fontSize = 20.sp,
+                            fontWeight = if (isListening) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     textStyle = LocalTextStyle.current.copy(
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.Normal
+                        fontWeight = if (isListening) FontWeight.Bold else FontWeight.Normal
                     ),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -218,6 +227,8 @@ fun NoteEditorScreen(
                 DrawingCanvas(
                     paths = drawingPaths,
                     currentPath = currentPath,
+                    currentColor = selectedColor,
+                    currentStrokeWidth = strokeWidth,
                     onPathUpdate = { newPoint ->
                         currentPath.add(newPoint)
                     },
@@ -225,8 +236,8 @@ fun NoteEditorScreen(
                         if (currentPath.isNotEmpty()) {
                             drawingPaths = drawingPaths + DrawingPath(
                                 points = currentPath.toList(),
-                                color = Color.Black.value.toLong(),
-                                strokeWidth = 5f
+                                color = selectedColor.value.toLong(),
+                                strokeWidth = strokeWidth
                             )
                             currentPath.clear()
                         }
@@ -236,26 +247,57 @@ fun NoteEditorScreen(
                         .weight(1f)
                 )
 
-                // Drawing toolbar
-                Row(
+                // Drawing toolbar with color and stroke options
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .background(Color(0xFFF5F5F5))
+                        .padding(8.dp)
                 ) {
-                    IconButton(onClick = {
-                        if (drawingPaths.isNotEmpty()) {
-                            drawingPaths = drawingPaths.dropLast(1)
-                        }
-                    }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Deshacer")
+                    // Color selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        ColorButton(Color.Black, selectedColor == Color.Black) { selectedColor = Color.Black }
+                        ColorButton(Color.Blue, selectedColor == Color.Blue) { selectedColor = Color.Blue }
+                        ColorButton(Color.Red, selectedColor == Color.Red) { selectedColor = Color.Red }
+                        ColorButton(Color.Green, selectedColor == Color.Green) { selectedColor = Color.Green }
+                        ColorButton(Color(0xFFFFB300), selectedColor == Color(0xFFFFB300)) { selectedColor = Color(0xFFFFB300) }
                     }
 
-                    IconButton(onClick = {
-                        drawingPaths = emptyList()
-                        currentPath.clear()
-                    }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Limpiar")
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Stroke width selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Grosor:", fontSize = 14.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            StrokeButton(3f, strokeWidth == 3f) { strokeWidth = 3f }
+                            StrokeButton(5f, strokeWidth == 5f) { strokeWidth = 5f }
+                            StrokeButton(8f, strokeWidth == 8f) { strokeWidth = 8f }
+                            StrokeButton(12f, strokeWidth == 12f) { strokeWidth = 12f }
+                        }
+
+                        Row {
+                            IconButton(onClick = {
+                                if (drawingPaths.isNotEmpty()) {
+                                    drawingPaths = drawingPaths.dropLast(1)
+                                }
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Deshacer", tint = Color.Gray)
+                            }
+
+                            IconButton(onClick = {
+                                drawingPaths = emptyList()
+                                currentPath.clear()
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Limpiar", tint = Color.Gray)
+                            }
+                        }
                     }
                 }
             } else {
@@ -292,9 +334,54 @@ fun NoteEditorScreen(
 }
 
 @Composable
+fun ColorButton(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(color)
+            .clickable(onClick = onClick)
+            .then(
+                if (isSelected) Modifier.padding(2.dp) else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isSelected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = if (color == Color.White) Color.Black else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun StrokeButton(width: Float, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) Color(0xFFE0E0E0) else Color.White)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width.dp)
+                .clip(CircleShape)
+                .background(Color.Black)
+        )
+    }
+}
+
+@Composable
 fun DrawingCanvas(
     paths: List<DrawingPath>,
     currentPath: List<DrawingPoint>,
+    currentColor: Color,
+    currentStrokeWidth: Float,
     onPathUpdate: (DrawingPoint) -> Unit,
     onPathEnd: () -> Unit,
     modifier: Modifier = Modifier
@@ -338,7 +425,7 @@ fun DrawingCanvas(
             )
         }
 
-        // Draw current path
+        // Draw current path with current color and stroke
         if (currentPath.isNotEmpty()) {
             val path = Path()
             currentPath.forEachIndexed { index, point ->
@@ -350,9 +437,9 @@ fun DrawingCanvas(
             }
             drawPath(
                 path = path,
-                color = Color.Black,
+                color = currentColor,
                 style = Stroke(
-                    width = 5f,
+                    width = currentStrokeWidth,
                     cap = StrokeCap.Round,
                     join = StrokeJoin.Round
                 )
