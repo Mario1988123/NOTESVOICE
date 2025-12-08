@@ -128,13 +128,23 @@ class VoiceRecognitionManager(private val context: Context) {
             for (command in magicCommands) {
                 if (lowerMatch.contains(command)) {
                     foundCommand = true
-                    // Extract the word/card after the magic command
+                    // Extract everything after the magic command
                     val parts = lowerMatch.split(command)
                     if (parts.size > 1) {
-                        val wordAfterCommand = parts[1].trim().split(" ").firstOrNull()
-                        if (!wordAfterCommand.isNullOrEmpty()) {
-                            Log.d(TAG, "Extracted word: $wordAfterCommand")
-                            _recognizedText.value = wordAfterCommand
+                        val textAfterCommand = parts[1].trim()
+                        if (textAfterCommand.isNotEmpty()) {
+                            Log.d(TAG, "Extracted text: $textAfterCommand")
+
+                            // For card commands, capture the full card phrase (e.g., "as de picas")
+                            // For word commands, capture the full word/phrase
+                            if (command.contains("carta")) {
+                                // This is a card command - capture the full card name
+                                _recognizedText.value = textAfterCommand
+                            } else {
+                                // This is a word command - capture everything
+                                _recognizedText.value = textAfterCommand
+                            }
+
                             _isListening.value = false
                             isWaitingForMagicCommand = false
                             stopListening()

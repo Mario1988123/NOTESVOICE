@@ -50,24 +50,31 @@ fun NoteEditorScreen(
     var isDrawingMode by remember { mutableStateOf(false) }
     var drawingPaths by remember { mutableStateOf<List<DrawingPath>>(emptyList()) }
     var currentPath by remember { mutableStateOf<MutableList<DrawingPoint>>(mutableListOf()) }
-    var showVoiceDialog by remember { mutableStateOf(false) }
+
+    // Secret activation: Triple tap on title area
+    var tapCount by remember { mutableStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
 
     val isListening by voiceManager.isListening.collectAsState()
     val recognizedText by voiceManager.recognizedText.collectAsState()
     val error by voiceManager.error.collectAsState()
 
-    val hasAudioPermission = remember {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        hasAudioPermission = isGranted
         if (isGranted) {
-            showVoiceDialog = true
+            // Start listening automatically after permission is granted
+            voiceManager.startContinuousListening()
         }
     }
 
@@ -101,19 +108,8 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (hasAudioPermission) {
-                            showVoiceDialog = true
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    }) {
-                        Icon(
-                            Icons.Default.Mic,
-                            contentDescription = "Comando mágico",
-                            tint = if (isListening) Color.Red else Color.Gray
-                        )
-                    }
+                    // Hidden microphone - removed from UI for magic tricks
+                    // Activated by triple tap on title area
 
                     IconButton(onClick = { isDrawingMode = !isDrawingMode }) {
                         Icon(
@@ -149,31 +145,64 @@ fun NoteEditorScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // Title field
-            TextField(
-                value = title,
-                onValueChange = { title = it },
-                placeholder = {
-                    Text(
-                        "Título",
-                        color = Color.LightGray,
-                        fontSize = 20.sp
-                    )
-                },
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Normal
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
+            // Title field with secret triple-tap activation for voice
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastTapTime < 500) {
+                                    tapCount++
+                                    if (tapCount >= 2) {
+                                        // Triple tap detected - activate voice
+                                        if (hasAudioPermission) {
+                                            if (isListening) {
+                                                voiceManager.stopListening()
+                                            } else {
+                                                voiceManager.startContinuousListening()
+                                            }
+                                        } else {
+                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        }
+                                        tapCount = 0
+                                    }
+                                } else {
+                                    tapCount = 0
+                                }
+                                lastTapTime = currentTime
+                            },
+                            onDrag = { _, _ -> },
+                            onDragEnd = { }
+                        )
+                    }
+            ) {
+                TextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    placeholder = {
+                        Text(
+                            "Título",
+                            color = Color.LightGray,
+                            fontSize = 20.sp
+                        )
+                    },
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
 
             Text(
                 text = "8 de diciembre 9:00  |  0 caracteres",
@@ -252,24 +281,6 @@ fun NoteEditorScreen(
                         .verticalScroll(rememberScrollState())
                 )
             }
-        }
-
-        // Voice command dialog
-        if (showVoiceDialog) {
-            VoiceCommandDialog(
-                isListening = isListening,
-                error = error,
-                onStartListening = {
-                    voiceManager.startContinuousListening()
-                },
-                onStopListening = {
-                    voiceManager.stopListening()
-                },
-                onDismiss = {
-                    voiceManager.stopListening()
-                    showVoiceDialog = false
-                }
-            )
         }
     }
 
@@ -350,72 +361,6 @@ fun DrawingCanvas(
     }
 }
 
-@Composable
-fun VoiceCommandDialog(
-    isListening: Boolean,
-    error: String?,
-    onStartListening: () -> Unit,
-    onStopListening: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text("🎤 Comando Mágico")
-        },
-        text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (isListening)
-                        "Escuchando... Di 'tu carta pensada es' seguido de la carta"
-                    else
-                        "Toca el botón para empezar a escuchar",
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (isListening) {
-                            onStopListening()
-                        } else {
-                            onStartListening()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isListening) Color.Red else MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.padding(top = 16.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Mic,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isListening) "Detener" else "Iniciar")
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
-            }
-        }
-    )
-}
-
 fun isPlayingCard(text: String): Boolean {
     val lowerText = text.lowercase()
     val ranks = listOf("as", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "jota", "reina", "rey", "j", "q", "k", "a", "2", "3", "4", "5", "6", "7", "8", "9", "10")
@@ -425,35 +370,161 @@ fun isPlayingCard(text: String): Boolean {
 }
 
 fun createCardDrawing(cardName: String): DrawingPath {
-    // Create a simple card outline
+    // Create a hand-drawn looking card with natural variations
     val points = mutableListOf<DrawingPoint>()
+    val random = java.util.Random(cardName.hashCode().toLong())
 
-    // Draw a rectangle representing a card (centered at 200, 200)
     val centerX = 200f
     val centerY = 300f
-    val width = 100f
-    val height = 140f
+    val width = 120f
+    val height = 170f
 
-    // Top line
-    for (x in 0..100 step 5) {
-        points.add(DrawingPoint(centerX - width / 2 + x, centerY - height / 2))
+    // Helper function to add natural variation to hand-drawn lines
+    fun addNoise(value: Float): Float {
+        return value + (random.nextFloat() - 0.5f) * 3
     }
+
+    // Draw card outline with natural hand-drawn wobble
+    // Top line (with slight curves)
+    var x = centerX - width / 2
+    while (x <= centerX + width / 2) {
+        points.add(DrawingPoint(addNoise(x), addNoise(centerY - height / 2)))
+        x += 3 + random.nextFloat() * 2
+    }
+
     // Right line
-    for (y in 0..140 step 5) {
-        points.add(DrawingPoint(centerX + width / 2, centerY - height / 2 + y))
+    var y = centerY - height / 2
+    while (y <= centerY + height / 2) {
+        points.add(DrawingPoint(addNoise(centerX + width / 2), addNoise(y)))
+        y += 3 + random.nextFloat() * 2
     }
+
     // Bottom line
-    for (x in 100 downTo 0 step 5) {
-        points.add(DrawingPoint(centerX - width / 2 + x, centerY + height / 2))
+    x = centerX + width / 2
+    while (x >= centerX - width / 2) {
+        points.add(DrawingPoint(addNoise(x), addNoise(centerY + height / 2)))
+        x -= 3 + random.nextFloat() * 2
     }
+
     // Left line
-    for (y in 140 downTo 0 step 5) {
-        points.add(DrawingPoint(centerX - width / 2, centerY - height / 2 + y))
+    y = centerY + height / 2
+    while (y >= centerY - height / 2) {
+        points.add(DrawingPoint(addNoise(centerX - width / 2), addNoise(y)))
+        y -= 3 + random.nextFloat() * 2
+    }
+
+    // Parse card name to draw rank and suit
+    val lowerName = cardName.lowercase()
+
+    // Draw rank symbol in corner
+    val rankX = centerX - width / 2 + 15
+    val rankY = centerY - height / 2 + 20
+
+    // Draw a simple "3" if it's a three (example)
+    if (lowerName.contains("tres") || lowerName.contains("3")) {
+        // Draw number 3
+        addNumber3(points, rankX, rankY, random)
+    } else if (lowerName.contains("as") || lowerName.contains("a")) {
+        // Draw letter A
+        addLetterA(points, rankX, rankY, random)
+    }
+
+    // Draw suit symbol in center
+    if (lowerName.contains("corazones") || lowerName.contains("corazón")) {
+        addHeart(points, centerX, centerY, random)
+    } else if (lowerName.contains("picas")) {
+        addSpade(points, centerX, centerY, random)
+    } else if (lowerName.contains("diamantes")) {
+        addDiamond(points, centerX, centerY, random)
+    } else if (lowerName.contains("tréboles") || lowerName.contains("trebol")) {
+        addClub(points, centerX, centerY, random)
     }
 
     return DrawingPath(
         points = points,
         color = Color.Black.value.toLong(),
-        strokeWidth = 4f
+        strokeWidth = 3f
     )
+}
+
+fun addNumber3(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    // Top curve
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 5), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x + 5), addNoise(y + 6)))
+    // Middle
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 9)))
+    // Bottom curve
+    points.add(DrawingPoint(addNoise(x + 5), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+}
+
+fun addLetterA(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    // Left line
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
+    // Right line
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+    // Middle bar
+    points.add(DrawingPoint(addNoise(x + 2), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x + 6), addNoise(y + 6)))
+}
+
+fun addHeart(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 25f
+    // Heart shape
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 4)))
+    points.add(DrawingPoint(addNoise(cx - size / 2), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx - size / 3), addNoise(cy - size)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 1.5f)))
+    points.add(DrawingPoint(addNoise(cx + size / 3), addNoise(cy - size)))
+    points.add(DrawingPoint(addNoise(cx + size / 2), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 4)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
+}
+
+fun addSpade(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 25f
+    // Spade shape (inverted heart with stem)
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx - size / 2), addNoise(cy - size / 4)))
+    points.add(DrawingPoint(addNoise(cx - size / 3), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size)))
+    points.add(DrawingPoint(addNoise(cx + size / 3), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx + size / 2), addNoise(cy - size / 4)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy)))
+}
+
+fun addDiamond(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 30f
+    // Diamond shape
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx + size / 2), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
+    points.add(DrawingPoint(addNoise(cx - size / 2), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 2)))
+}
+
+fun addClub(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 20f
+    // Three circles forming a club
+    // Top circle
+    for (angle in 0..360 step 30) {
+        val rad = Math.toRadians(angle.toDouble())
+        points.add(DrawingPoint(
+            addNoise(cx + (size / 3 * Math.cos(rad)).toFloat()),
+            addNoise(cy - size / 2 + (size / 3 * Math.sin(rad)).toFloat())
+        ))
+    }
+    // Stem
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
 }

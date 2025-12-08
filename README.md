@@ -13,13 +13,22 @@ Una aplicación de notas para Android con una función especial de reconocimient
 - **🎴 Dibujo automático de cartas**: Si mencionas una carta, se dibuja automáticamente
 - **💾 Almacenamiento local**: Las notas se guardan en el dispositivo
 
+## 🎩 Activación Secreta del Micrófono
+
+**¡IMPORTANTE PARA MAGOS!** El micrófono está completamente oculto de la interfaz para no revelar el truco durante la actuación.
+
+**Para activar/desactivar el reconocimiento de voz:**
+- Realiza un **triple tap rápido** en el área del título de la nota
+- El sistema comenzará a escuchar de forma continua (sin indicador visible)
+- Triple tap de nuevo para detenerlo
+
 ## 🚀 Comandos Mágicos Soportados
 
 El sistema reconoce los siguientes comandos mágicos en español:
-- "tu carta pensada es"
-- "tu palabra pensada es"
-- "la carta pensada es"
-- "la palabra pensada es"
+- "tu carta pensada es" → Captura la carta completa (ej: "as de picas")
+- "tu palabra pensada es" → Captura la palabra/frase completa
+- "la carta pensada es" → Captura la carta completa
+- "la palabra pensada es" → Captura la palabra/frase completa
 
 ## 🔧 Requisitos Técnicos
 
@@ -31,14 +40,28 @@ El sistema reconoce los siguientes comandos mágicos en español:
 ## 📱 Cómo Usar
 
 1. **Crear una nueva nota**: Toca el botón flotante "+" en la pantalla principal
-2. **Activar el comando mágico**:
-   - Toca el ícono del micrófono en el editor de notas
-   - Concede permiso de micrófono si se solicita
-   - Toca "Iniciar" en el diálogo
-   - Di el comando mágico seguido de la palabra/carta
-   - Ejemplo: "tu carta pensada es as de picas"
-3. **Modo dibujo**: Toca el ícono del lápiz para activar el modo de dibujo
+2. **Activar el comando mágico (SECRETO)**:
+   - Haz **triple tap rápido** en el área del título
+   - Concede permiso de micrófono si se solicita (solo la primera vez)
+   - El sistema empieza a escuchar automáticamente (sin indicador visual)
+   - Habla normalmente durante tu actuación
+   - Di el comando mágico seguido de la carta: "tu carta pensada es as de picas"
+   - La app escribirá "as de picas" o dibujará la carta automáticamente
+   - Triple tap de nuevo para desactivar
+3. **Modo dibujo**: Toca el ícono del lápiz para activar el modo de dibujo manual
 4. **Guardar**: Toca el botón de verificación ✓ para guardar la nota
+
+### 🎭 Ejemplo de Uso en Actuación
+
+```
+Mago: "Piensa en una carta, cualquier carta..."
+Espectador: (piensa en el 3 de corazones)
+Mago: [Triple tap secreto en el teléfono mientras habla]
+Mago: "Ahora, en voz alta, di: tu carta pensada es..."
+Espectador: "tu carta pensada es tres de corazones"
+[La app captura "tres de corazones" y dibuja la carta automáticamente]
+Mago: [Muestra la nota con el dibujo de la carta]
+```
 
 ## 🏗️ Estructura del Proyecto
 
@@ -113,6 +136,8 @@ Edita `app/src/main/res/values/colors.xml` para personalizar los colores de la a
 - Modo de escucha continua que se reinicia automáticamente
 - Procesamiento de resultados parciales para detección temprana del comando
 - Configurado para español (es-ES)
+- **Activación secreta mediante triple tap** - sin indicadores visuales
+- Captura frases completas de cartas (no solo palabras individuales)
 
 ### Almacenamiento
 - Usa SharedPreferences con serialización JSON (Gson)
@@ -140,8 +165,10 @@ Este proyecto es de código abierto y está disponible para uso personal y educa
 
 ### El reconocimiento de voz no funciona
 - Verifica que hayas concedido el permiso de micrófono
+- Activa el micrófono con **triple tap rápido** en el área del título
 - Asegúrate de tener conexión a internet (el reconocimiento de Google requiere conexión)
 - Verifica que el idioma del sistema esté configurado en español
+- El triple tap debe ser rápido (menos de 500ms entre toques)
 
 ### La app no compila
 - Asegúrate de tener instalado Android SDK 34
