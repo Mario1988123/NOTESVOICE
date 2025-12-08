@@ -42,7 +42,7 @@ jobs:
       run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload Debug APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
@@ -52,7 +52,7 @@ jobs:
       continue-on-error: true
 
     - name: Upload Release APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: app-release-unsigned
@@ -64,7 +64,7 @@ jobs:
       continue-on-error: true
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
