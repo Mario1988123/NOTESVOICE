@@ -26,11 +26,7 @@ class VoiceRecognitionManager(private val context: Context) {
     private val _microphoneStartTime = MutableStateFlow<Long?>(null)
     val microphoneStartTime: StateFlow<Long?> = _microphoneStartTime.asStateFlow()
 
-    private val _partialText = MutableStateFlow<String?>(null)
-    val partialText: StateFlow<String?> = _partialText.asStateFlow()
-
     private var speechRecognizer: SpeechRecognizer? = null
-    private var isWaitingForContinuousListening = false
 
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
@@ -42,13 +38,9 @@ class VoiceRecognitionManager(private val context: Context) {
             Log.d(TAG, "Beginning of speech")
         }
 
-        override fun onRmsChanged(rmsdB: Float) {
-            // Voice volume changed
-        }
+        override fun onRmsChanged(rmsdB: Float) {}
 
-        override fun onBufferReceived(buffer: ByteArray?) {
-            // Audio buffer received
-        }
+        override fun onBufferReceived(buffer: ByteArray?) {}
 
         override fun onEndOfSpeech() {
             Log.d(TAG, "End of speech")
@@ -59,64 +51,26 @@ class VoiceRecognitionManager(private val context: Context) {
             Log.e(TAG, "Error: $errorMessage")
             _error.value = errorMessage
             _isListening.value = false
-
-            // Restart listening if we're in continuous mode and it wasn't a manual stop
-            if (isWaitingForContinuousListening && error != SpeechRecognizer.ERROR_CLIENT) {
-                // Restart after a brief delay
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (isWaitingForContinuousListening) {
-                        startListening()
-                    }
-                }, 500)
-            }
         }
 
         override fun onResults(results: Bundle?) {
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            matches?.let { processSpeechResults(it) }
-        }
-
-        override fun onPartialResults(results: Bundle?) {
-            // Partial results can be used for real-time display if needed
-            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            matches?.let {
-                Log.d(TAG, "Partial results: $it")
-                if (it.isNotEmpty()) {
-                    _partialText.value = it[0]
-                }
+            if (matches != null && matches.isNotEmpty()) {
+                val recognized = matches[0]
+                Log.d(TAG, "Recognized: $recognized")
+                _recognizedText.value = recognized
+                _isListening.value = false
             }
         }
 
-        override fun onEvent(eventType: Int, params: Bundle?) {
-            // Reserved for future use
-        }
-    }
-
-    private fun processSpeechResults(matches: List<String>) {
-        if (matches.isEmpty()) {
-            restartListeningIfNeeded()
-            return
+        override fun onPartialResults(results: Bundle?) {
+            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            if (matches != null && matches.isNotEmpty()) {
+                Log.d(TAG, "Partial: ${matches[0]}")
+            }
         }
 
-        val bestMatch = matches[0]
-        Log.d(TAG, "Speech results: $bestMatch")
-
-        // Emitir todo el texto reconocido
-        _recognizedText.value = bestMatch
-
-        // Restart listening for continuous mode
-        restartListeningIfNeeded()
-    }
-
-    private fun restartListeningIfNeeded() {
-        if (isWaitingForContinuousListening) {
-            // Restart listening after a delay
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                if (isWaitingForContinuousListening) {
-                    startListening()
-                }
-            }, 1000)
-        }
+        override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 
     private fun getErrorText(errorCode: Int): String {
@@ -134,18 +88,14 @@ class VoiceRecognitionManager(private val context: Context) {
         }
     }
 
-    fun startContinuousListening() {
-        isWaitingForContinuousListening = true
-        _recognizedText.value = null
-        _microphoneStartTime.value = System.currentTimeMillis()
-        startListening()
-    }
-
     fun startListening() {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             _error.value = "El reconocimiento de voz no está disponible"
             return
         }
+
+        // Guardar timestamp
+        _microphoneStartTime.value = System.currentTimeMillis()
 
         if (speechRecognizer == null) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
@@ -156,27 +106,22 @@ class VoiceRecognitionManager(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            // Tiempo de silencio moderado
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
-            // Intentar evitar sonidos del sistema (no siempre funciona)
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
 
         _error.value = null
+        _recognizedText.value = null
         speechRecognizer?.startListening(intent)
+        Log.d(TAG, "Started listening")
     }
 
     fun stopListening() {
-        isWaitingForContinuousListening = false
         _isListening.value = false
-        _microphoneStartTime.value = null
         speechRecognizer?.stopListening()
+        Log.d(TAG, "Stopped listening")
     }
 
     fun destroy() {
-        isWaitingForContinuousListening = false
         speechRecognizer?.destroy()
         speechRecognizer = null
     }

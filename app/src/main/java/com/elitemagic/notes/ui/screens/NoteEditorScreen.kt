@@ -81,13 +81,11 @@ fun NoteEditorScreen(
 
     val isListening by voiceManager.isListening.collectAsState()
     val recognizedText by voiceManager.recognizedText.collectAsState()
-    val partialText by voiceManager.partialText.collectAsState()
     val error by voiceManager.error.collectAsState()
     val microphoneStartTime by voiceManager.microphoneStartTime.collectAsState()
 
     var noteCreationTime by remember { mutableStateOf<Long?>(null) }
     var alreadyDrawnCards by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var lastRecognizedText by remember { mutableStateOf("") }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -103,47 +101,36 @@ fun NoteEditorScreen(
     ) { isGranted ->
         hasAudioPermission = isGranted
         if (isGranted) {
-            // Start listening automatically after permission is granted
-            voiceManager.startContinuousListening()
+            voiceManager.startListening()
         }
     }
 
-    // Handle final recognized text - ESCRIBIR TODO en la nota
+    // ESCRIBIR texto reconocido
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
-            if (text != lastRecognizedText) {
-                // Guardar timestamp del micrófono
-                microphoneStartTime?.let { timestamp ->
-                    noteCreationTime = timestamp
-                }
+            android.util.Log.d("NoteEditor", "Writing text: $text")
 
-                // ESCRIBIR TODO el texto reconocido en la nota
-                content = if (content.isEmpty()) {
-                    text
-                } else {
-                    "$content $text"
-                }
-
-                lastRecognizedText = text
-                voiceManager.clearRecognizedText()
+            // Guardar timestamp del micrófono
+            microphoneStartTime?.let { timestamp ->
+                noteCreationTime = timestamp
             }
+
+            // ESCRIBIR en la nota
+            content = if (content.isEmpty()) {
+                text
+            } else {
+                "$content $text"
+            }
+
+            voiceManager.clearRecognizedText()
         }
     }
 
-    // Show partial results in real-time (optional - comentado por ahora)
-    /*LaunchedEffect(partialText) {
-        partialText?.let { text ->
-            // Mostrar texto parcial mientras habla
-            android.util.Log.d("NoteEditor", "Partial: $text")
-        }
-    }*/
-
-    // Detectar cartas automáticamente del contenido
+    // Detectar cartas del contenido
     LaunchedEffect(content) {
         if (content.isNotEmpty()) {
             val detectedCards = detectCardsInText(content)
             detectedCards.forEach { card ->
-                // Solo dibujar si no la hemos dibujado ya
                 if (!alreadyDrawnCards.contains(card)) {
                     val cardPath = createCardDrawing(card)
                     drawingPaths = drawingPaths + cardPath
@@ -169,7 +156,7 @@ fun NoteEditorScreen(
                             if (isListening) {
                                 voiceManager.stopListening()
                             } else {
-                                voiceManager.startContinuousListening()
+                                voiceManager.startListening()
                             }
                         } else {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
