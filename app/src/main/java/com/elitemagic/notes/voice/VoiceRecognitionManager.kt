@@ -27,17 +27,7 @@ class VoiceRecognitionManager(private val context: Context) {
     val microphoneStartTime: StateFlow<Long?> = _microphoneStartTime.asStateFlow()
 
     private var speechRecognizer: SpeechRecognizer? = null
-    private var isWaitingForMagicCommand = false
-    private var fullTranscript = StringBuilder()
-
-    // Magic commands that trigger the special recognition
-    private val magicCommands = listOf(
-        "tu carta pensada es",
-        "tu palabra pensada es",
-        "la carta pensada es",
-        "la carta elegida es",
-        "la palabra pensada es"
-    )
+    private var isWaitingForContinuousListening = false
 
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
@@ -68,10 +58,10 @@ class VoiceRecognitionManager(private val context: Context) {
             _isListening.value = false
 
             // Restart listening if we're in continuous mode and it wasn't a manual stop
-            if (isWaitingForMagicCommand && error != SpeechRecognizer.ERROR_CLIENT) {
+            if (isWaitingForContinuousListening && error != SpeechRecognizer.ERROR_CLIENT) {
                 // Restart after a brief delay
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (isWaitingForMagicCommand) {
+                    if (isWaitingForContinuousListening) {
                         startListening()
                     }
                 }, 500)
@@ -84,33 +74,15 @@ class VoiceRecognitionManager(private val context: Context) {
         }
 
         override fun onPartialResults(results: Bundle?) {
+            // Partial results can be used for real-time display if needed
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.let {
                 Log.d(TAG, "Partial results: $it")
-                // For continuous listening, we can check partial results
-                if (isWaitingForMagicCommand) {
-                    processPartialResults(it)
-                }
             }
         }
 
         override fun onEvent(eventType: Int, params: Bundle?) {
             // Reserved for future use
-        }
-    }
-
-    private fun processPartialResults(matches: List<String>) {
-        for (match in matches) {
-            val lowerMatch = match.lowercase(Locale.getDefault())
-            fullTranscript.append(" ").append(lowerMatch)
-
-            // Check if any magic command is present
-            for (command in magicCommands) {
-                if (lowerMatch.contains(command)) {
-                    Log.d(TAG, "Magic command detected in partial: $command")
-                    // We'll wait for final results to extract the word
-                }
-            }
         }
     }
 
@@ -121,63 +93,23 @@ class VoiceRecognitionManager(private val context: Context) {
         }
 
         val bestMatch = matches[0]
-        val lowerMatch = bestMatch.lowercase(Locale.getDefault())
-
         Log.d(TAG, "Speech results: $bestMatch")
-        fullTranscript.append(" ").append(lowerMatch)
 
-        if (isWaitingForMagicCommand) {
-            // Check if the magic command is present
-            var foundCommand = false
-            for (command in magicCommands) {
-                if (lowerMatch.contains(command)) {
-                    foundCommand = true
-                    // Extract everything after the magic command
-                    val parts = lowerMatch.split(command)
-                    if (parts.size > 1) {
-                        val textAfterCommand = parts[1].trim()
-                        if (textAfterCommand.isNotEmpty()) {
-                            Log.d(TAG, "Extracted text: $textAfterCommand")
+        // Emitir todo el texto reconocido
+        _recognizedText.value = bestMatch
 
-                            // For card commands, capture the full card phrase (e.g., "as de picas")
-                            // For word commands, capture the full word/phrase
-                            if (command.contains("carta")) {
-                                // This is a card command - capture the full card name
-                                _recognizedText.value = textAfterCommand
-                            } else {
-                                // This is a word command - capture everything
-                                _recognizedText.value = textAfterCommand
-                            }
-
-                            _isListening.value = false
-                            isWaitingForMagicCommand = false
-                            stopListening()
-                            return
-                        }
-                    }
-                    break
-                }
-            }
-
-            // If no command found, keep listening
-            if (!foundCommand) {
-                restartListeningIfNeeded()
-            }
-        } else {
-            // Normal mode - just return the recognized text
-            _recognizedText.value = bestMatch
-            _isListening.value = false
-        }
+        // Restart listening for continuous mode
+        restartListeningIfNeeded()
     }
 
     private fun restartListeningIfNeeded() {
-        if (isWaitingForMagicCommand) {
+        if (isWaitingForContinuousListening) {
             // Restart listening after a short delay
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                if (isWaitingForMagicCommand) {
+                if (isWaitingForContinuousListening) {
                     startListening()
                 }
-            }, 100)
+            }, 300)
         }
     }
 
@@ -197,8 +129,7 @@ class VoiceRecognitionManager(private val context: Context) {
     }
 
     fun startContinuousListening() {
-        isWaitingForMagicCommand = true
-        fullTranscript.clear()
+        isWaitingForContinuousListening = true
         _recognizedText.value = null
         _microphoneStartTime.value = System.currentTimeMillis()
         startListening()
@@ -232,14 +163,14 @@ class VoiceRecognitionManager(private val context: Context) {
     }
 
     fun stopListening() {
-        isWaitingForMagicCommand = false
+        isWaitingForContinuousListening = false
         _isListening.value = false
         _microphoneStartTime.value = null
         speechRecognizer?.stopListening()
     }
 
     fun destroy() {
-        isWaitingForMagicCommand = false
+        isWaitingForContinuousListening = false
         speechRecognizer?.destroy()
         speechRecognizer = null
     }

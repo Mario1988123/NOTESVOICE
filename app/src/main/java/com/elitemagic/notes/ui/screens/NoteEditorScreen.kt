@@ -85,6 +85,7 @@ fun NoteEditorScreen(
     val microphoneStartTime by voiceManager.microphoneStartTime.collectAsState()
 
     var noteCreationTime by remember { mutableStateOf<Long?>(null) }
+    var alreadyDrawnCards by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -105,28 +106,37 @@ fun NoteEditorScreen(
         }
     }
 
-    // Handle recognized text
+    // Handle recognized text - ESCRIBIR TODO en la nota
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
-            // Save the microphone start time when we receive voice recognition
+            // Guardar timestamp del micrófono
             microphoneStartTime?.let { timestamp ->
                 noteCreationTime = timestamp
             }
 
-            // Check if it's a playing card
-            if (isPlayingCard(text)) {
-                // Draw the card
-                val cardPath = createCardDrawing(text)
-                drawingPaths = drawingPaths + cardPath
+            // ESCRIBIR TODO el texto reconocido en la nota
+            content = if (content.isEmpty()) {
+                text
             } else {
-                // Add text to content
-                content = if (content.isEmpty()) {
-                    text
-                } else {
-                    "$content $text"
+                "$content $text"
+            }
+
+            voiceManager.clearRecognizedText()
+        }
+    }
+
+    // Detectar cartas automáticamente del contenido
+    LaunchedEffect(content) {
+        if (content.isNotEmpty()) {
+            val detectedCards = detectCardsInText(content)
+            detectedCards.forEach { card ->
+                // Solo dibujar si no la hemos dibujado ya
+                if (!alreadyDrawnCards.contains(card)) {
+                    val cardPath = createCardDrawing(card)
+                    drawingPaths = drawingPaths + cardPath
+                    alreadyDrawnCards = alreadyDrawnCards + card
                 }
             }
-            voiceManager.clearRecognizedText()
         }
     }
 
@@ -485,6 +495,43 @@ fun DrawingCanvas(
             )
         }
     }
+}
+
+// Detectar cartas en el texto completo
+fun detectCardsInText(text: String): List<String> {
+    val lowerText = text.lowercase()
+    val detectedCards = mutableListOf<String>()
+
+    val ranks = listOf("as", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "jota", "sota", "caballo", "reina", "rey")
+    val suits = listOf("corazones", "corazón", "diamantes", "diamante", "tréboles", "trébol", "picas", "pica", "copas", "copa", "oros", "oro", "espadas", "espada", "bastos", "basto")
+
+    // Buscar combinaciones de rango + palo
+    for (rank in ranks) {
+        for (suit in suits) {
+            val cardPattern1 = "$rank de $suit"
+            val cardPattern2 = "$rank $suit"
+
+            if (lowerText.contains(cardPattern1) || lowerText.contains(cardPattern2)) {
+                // Encontramos una carta completa
+                val cardName = "$rank de $suit"
+                if (!detectedCards.contains(cardName)) {
+                    detectedCards.add(cardName)
+                }
+            }
+        }
+    }
+
+    // También detectar solo rangos o solo palos como fallback
+    if (detectedCards.isEmpty()) {
+        for (rank in ranks) {
+            if (lowerText.contains(rank)) {
+                detectedCards.add(rank)
+                break // Solo la primera
+            }
+        }
+    }
+
+    return detectedCards
 }
 
 fun isPlayingCard(text: String): Boolean {
