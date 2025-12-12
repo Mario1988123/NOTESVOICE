@@ -23,6 +23,9 @@ class VoiceRecognitionManager(private val context: Context) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _microphoneStartTime = MutableStateFlow<Long?>(null)
+    val microphoneStartTime: StateFlow<Long?> = _microphoneStartTime.asStateFlow()
+
     private var speechRecognizer: SpeechRecognizer? = null
     private var isWaitingForMagicCommand = false
     private var fullTranscript = StringBuilder()
@@ -32,6 +35,7 @@ class VoiceRecognitionManager(private val context: Context) {
         "tu carta pensada es",
         "tu palabra pensada es",
         "la carta pensada es",
+        "la carta elegida es",
         "la palabra pensada es"
     )
 
@@ -196,6 +200,7 @@ class VoiceRecognitionManager(private val context: Context) {
         isWaitingForMagicCommand = true
         fullTranscript.clear()
         _recognizedText.value = null
+        _microphoneStartTime.value = System.currentTimeMillis()
         startListening()
     }
 
@@ -226,6 +231,7 @@ class VoiceRecognitionManager(private val context: Context) {
     fun stopListening() {
         isWaitingForMagicCommand = false
         _isListening.value = false
+        _microphoneStartTime.value = null
         speechRecognizer?.stopListening()
     }
 

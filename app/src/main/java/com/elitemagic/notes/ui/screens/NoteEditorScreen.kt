@@ -37,6 +37,8 @@ import com.elitemagic.notes.model.DrawingPoint
 import com.elitemagic.notes.model.Note
 import com.elitemagic.notes.voice.VoiceRecognitionManager
 import kotlinx.coroutines.launch
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,10 +51,25 @@ fun NoteEditorScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val gson = remember { Gson() }
+
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
     var isDrawingMode by remember { mutableStateOf(false) }
-    var drawingPaths by remember { mutableStateOf<List<DrawingPath>>(emptyList()) }
+
+    // Load existing drawing paths from note if available
+    var drawingPaths by remember {
+        mutableStateOf<List<DrawingPath>>(
+            note?.drawingData?.let { json ->
+                try {
+                    val type = object : TypeToken<List<DrawingPath>>() {}.type
+                    gson.fromJson<List<DrawingPath>>(json, type)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            } ?: emptyList()
+        )
+    }
     var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
 
     // Drawing options
@@ -62,6 +79,9 @@ fun NoteEditorScreen(
     val isListening by voiceManager.isListening.collectAsState()
     val recognizedText by voiceManager.recognizedText.collectAsState()
     val error by voiceManager.error.collectAsState()
+    val microphoneStartTime by voiceManager.microphoneStartTime.collectAsState()
+
+    var noteCreationTime by remember { mutableStateOf<Long?>(null) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -85,6 +105,11 @@ fun NoteEditorScreen(
     // Handle recognized text
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
+            // Save the microphone start time when we receive voice recognition
+            microphoneStartTime?.let { timestamp ->
+                noteCreationTime = timestamp
+            }
+
             // Check if it's a playing card
             if (isPlayingCard(text)) {
                 // Draw the card
@@ -112,7 +137,7 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
-                    // Microphone button with T icon
+                    // Text icon button to activate microphone
                     IconButton(onClick = {
                         if (hasAudioPermission) {
                             if (isListening) {
@@ -124,10 +149,11 @@ fun NoteEditorScreen(
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         }
                     }) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Activar/Desactivar micrófono",
-                            tint = if (isListening) Color.Red else Color.Gray
+                        Text(
+                            text = "T",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isListening) Color.Red else Color.Gray
                         )
                     }
 
@@ -140,12 +166,28 @@ fun NoteEditorScreen(
                     }
 
                     IconButton(onClick = {
+                        // Serialize drawing paths to JSON
+                        val drawingJson = if (drawingPaths.isNotEmpty()) {
+                            gson.toJson(drawingPaths)
+                        } else {
+                            null
+                        }
+
+                        // Use microphone start time if available (for magic trick timing)
+                        val creationTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
+                        val updateTimestamp = System.currentTimeMillis()
+
                         val noteToSave = note?.copy(
                             title = title,
-                            content = content
+                            content = content,
+                            drawingData = drawingJson,
+                            updatedAt = updateTimestamp
                         ) ?: Note(
                             title = title,
-                            content = content
+                            content = content,
+                            drawingData = drawingJson,
+                            createdAt = creationTimestamp,
+                            updatedAt = updateTimestamp
                         )
                         onSave(noteToSave)
                         onBack()
@@ -200,36 +242,36 @@ fun NoteEditorScreen(
 
             Divider(color = Color.LightGray, thickness = 0.5.dp)
 
-            // Content area - Text and Drawing together
+            // Content area - Text OR Drawing (not together)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .background(Color.White)
             ) {
-                // Text field always visible
-                TextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    placeholder = {
-                        Text(
-                            "Empieza a escribir",
-                            color = Color.LightGray
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    enabled = !isDrawingMode,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                )
-
-                // Drawing canvas on top when drawing mode is active
-                if (isDrawingMode) {
+                if (!isDrawingMode) {
+                    // Text field when NOT in drawing mode
+                    TextField(
+                        value = content,
+                        onValueChange = { content = it },
+                        placeholder = {
+                            Text(
+                                "Empieza a escribir",
+                                color = Color.LightGray
+                            )
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                    )
+                } else {
+                    // Drawing canvas when in drawing mode - white background, no placeholder
                     DrawingCanvas(
                         paths = drawingPaths,
                         currentPath = currentPath,
@@ -248,7 +290,10 @@ fun NoteEditorScreen(
                                 currentPath = emptyList()
                             }
                         },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White)
+                            .padding(16.dp)
                     )
                 }
             }
