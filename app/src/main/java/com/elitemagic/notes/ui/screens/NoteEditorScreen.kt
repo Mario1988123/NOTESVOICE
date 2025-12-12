@@ -39,6 +39,9 @@ import com.elitemagic.notes.voice.VoiceRecognitionManager
 import kotlinx.coroutines.launch
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -233,8 +236,14 @@ fun NoteEditorScreen(
                     .padding(horizontal = 16.dp)
             )
 
+            // Mostrar fecha/hora actual de la nota
+            val displayTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
+            val sdf = SimpleDateFormat("d 'de' MMMM HH:mm", Locale("es", "ES"))
+            val dateStr = sdf.format(Date(displayTimestamp))
+            val charCount = content.length
+
             Text(
-                text = "8 de diciembre 9:00  |  0 caracteres",
+                text = "$dateStr  |  $charCount caracteres",
                 fontSize = 12.sp,
                 color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -480,10 +489,14 @@ fun DrawingCanvas(
 
 fun isPlayingCard(text: String): Boolean {
     val lowerText = text.lowercase()
-    val ranks = listOf("as", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "jota", "reina", "rey", "j", "q", "k", "a", "2", "3", "4", "5", "6", "7", "8", "9", "10")
-    val suits = listOf("corazones", "diamantes", "tréboles", "picas", "copas", "oros", "espadas", "bastos")
+    val ranks = listOf("as", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "jota", "sota", "caballo", "reina", "rey", "j", "q", "k")
+    val suits = listOf("corazones", "corazón", "diamantes", "diamante", "tréboles", "trébol", "picas", "pica", "copas", "copa", "oros", "oro", "espadas", "espada", "bastos", "basto")
 
-    return ranks.any { lowerText.contains(it) } || suits.any { lowerText.contains(it) }
+    // Debe contener al menos un rango O un palo para considerarse carta
+    val hasRank = ranks.any { lowerText.contains(it) }
+    val hasSuit = suits.any { lowerText.contains(it) }
+
+    return hasRank || hasSuit
 }
 
 fun createCardDrawing(cardName: String): DrawingPath {
@@ -537,24 +550,35 @@ fun createCardDrawing(cardName: String): DrawingPath {
     val rankX = centerX - width / 2 + 15
     val rankY = centerY - height / 2 + 20
 
-    // Draw a simple "3" if it's a three (example)
-    if (lowerName.contains("tres") || lowerName.contains("3")) {
-        // Draw number 3
-        addNumber3(points, rankX, rankY, random)
-    } else if (lowerName.contains("as") || lowerName.contains("a")) {
-        // Draw letter A
-        addLetterA(points, rankX, rankY, random)
+    // Detectar y dibujar el rango de la carta
+    when {
+        lowerName.contains("as") -> addLetterA(points, rankX, rankY, random)
+        lowerName.contains("dos") || lowerName.contains("2") -> addNumber2(points, rankX, rankY, random)
+        lowerName.contains("tres") || lowerName.contains("3") -> addNumber3(points, rankX, rankY, random)
+        lowerName.contains("cuatro") || lowerName.contains("4") -> addNumber4(points, rankX, rankY, random)
+        lowerName.contains("cinco") || lowerName.contains("5") -> addNumber5(points, rankX, rankY, random)
+        lowerName.contains("seis") || lowerName.contains("6") -> addNumber6(points, rankX, rankY, random)
+        lowerName.contains("siete") || lowerName.contains("7") -> addNumber7(points, rankX, rankY, random)
+        lowerName.contains("ocho") || lowerName.contains("8") -> addNumber8(points, rankX, rankY, random)
+        lowerName.contains("nueve") || lowerName.contains("9") -> addNumber9(points, rankX, rankY, random)
+        lowerName.contains("diez") || lowerName.contains("10") -> addNumber10(points, rankX, rankY, random)
+        lowerName.contains("jota") || lowerName.contains("j") -> addLetterJ(points, rankX, rankY, random)
+        lowerName.contains("reina") || lowerName.contains("q") -> addLetterQ(points, rankX, rankY, random)
+        lowerName.contains("rey") || lowerName.contains("k") -> addLetterK(points, rankX, rankY, random)
+        lowerName.contains("sota") -> addLetterS(points, rankX, rankY, random)
+        lowerName.contains("caballo") -> addLetterC(points, rankX, rankY, random)
     }
 
     // Draw suit symbol in center
-    if (lowerName.contains("corazones") || lowerName.contains("corazón")) {
-        addHeart(points, centerX, centerY, random)
-    } else if (lowerName.contains("picas")) {
-        addSpade(points, centerX, centerY, random)
-    } else if (lowerName.contains("diamantes")) {
-        addDiamond(points, centerX, centerY, random)
-    } else if (lowerName.contains("tréboles") || lowerName.contains("trebol")) {
-        addClub(points, centerX, centerY, random)
+    when {
+        lowerName.contains("corazones") || lowerName.contains("corazón") -> addHeart(points, centerX, centerY, random)
+        lowerName.contains("picas") || lowerName.contains("pica") -> addSpade(points, centerX, centerY, random)
+        lowerName.contains("diamantes") || lowerName.contains("diamante") -> addDiamond(points, centerX, centerY, random)
+        lowerName.contains("tréboles") || lowerName.contains("trébol") -> addClub(points, centerX, centerY, random)
+        lowerName.contains("copas") || lowerName.contains("copa") -> addCup(points, centerX, centerY, random)
+        lowerName.contains("oros") || lowerName.contains("oro") -> addCoin(points, centerX, centerY, random)
+        lowerName.contains("espadas") || lowerName.contains("espada") -> addSword(points, centerX, centerY, random)
+        lowerName.contains("bastos") || lowerName.contains("basto") -> addClub(points, centerX, centerY, random)
     }
 
     return DrawingPath(
@@ -564,30 +588,153 @@ fun createCardDrawing(cardName: String): DrawingPath {
     )
 }
 
+// Funciones para dibujar números
+fun addNumber2(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+}
+
 fun addNumber3(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
     val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
-    // Top curve
     points.add(DrawingPoint(addNoise(x), addNoise(y)))
-    points.add(DrawingPoint(addNoise(x + 5), addNoise(y)))
     points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 3)))
-    points.add(DrawingPoint(addNoise(x + 5), addNoise(y + 6)))
-    // Middle
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 6)))
     points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 9)))
-    // Bottom curve
-    points.add(DrawingPoint(addNoise(x + 5), addNoise(y + 12)))
     points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
 }
 
+fun addNumber4(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 8)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 8)))
+    points.add(DrawingPoint(addNoise(x + 6), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 6), addNoise(y + 12)))
+}
+
+fun addNumber5(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+}
+
+fun addNumber6(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+}
+
+fun addNumber7(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 12)))
+}
+
+fun addNumber8(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 3)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 9)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 9)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 6)))
+}
+
+fun addNumber9(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+}
+
+fun addNumber10(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    // "1"
+    points.add(DrawingPoint(addNoise(x + 1), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 1), addNoise(y + 12)))
+    // "0"
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 9), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 9), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
+}
+
+// Funciones para dibujar letras
 fun addLetterA(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
     val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
-    // Left line
     points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
     points.add(DrawingPoint(addNoise(x + 4), addNoise(y)))
-    // Right line
     points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
-    // Middle bar
     points.add(DrawingPoint(addNoise(x + 2), addNoise(y + 6)))
     points.add(DrawingPoint(addNoise(x + 6), addNoise(y + 6)))
+}
+
+fun addLetterJ(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 6), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 6), addNoise(y + 10)))
+    points.add(DrawingPoint(addNoise(x + 2), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 10)))
+}
+
+fun addLetterQ(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 10)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 10)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x + 5), addNoise(y + 7)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+}
+
+fun addLetterK(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 6)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+}
+
+fun addLetterS(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 2)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 5)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 7)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 10)))
+}
+
+fun addLetterC(points: MutableList<DrawingPoint>, x: Float, y: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 1.5f }
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y)))
+    points.add(DrawingPoint(addNoise(x), addNoise(y + 12)))
+    points.add(DrawingPoint(addNoise(x + 8), addNoise(y + 12)))
 }
 
 fun addHeart(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
@@ -643,5 +790,50 @@ fun addClub(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: jav
     }
     // Stem
     points.add(DrawingPoint(addNoise(cx), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
+}
+
+// Palos españoles
+fun addCup(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 25f
+    // Copa shape - like a chalice
+    points.add(DrawingPoint(addNoise(cx - size / 3), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx - size / 2), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx + size / 2), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx + size / 3), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx - size / 3), addNoise(cy - size / 2)))
+    // Stem
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
+    points.add(DrawingPoint(addNoise(cx - size / 4), addNoise(cy + size / 2)))
+    points.add(DrawingPoint(addNoise(cx + size / 4), addNoise(cy + size / 2)))
+}
+
+fun addCoin(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 25f
+    // Oro shape - like a coin/circle
+    for (angle in 0..360 step 20) {
+        val rad = Math.toRadians(angle.toDouble())
+        points.add(DrawingPoint(
+            addNoise(cx + (size / 2 * Math.cos(rad)).toFloat()),
+            addNoise(cy + (size / 2 * Math.sin(rad)).toFloat())
+        ))
+    }
+}
+
+fun addSword(points: MutableList<DrawingPoint>, cx: Float, cy: Float, random: java.util.Random) {
+    val addNoise = { value: Float -> value + (random.nextFloat() - 0.5f) * 2f }
+    val size = 30f
+    // Espada shape - like a sword
+    // Blade
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy - size / 2)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 4)))
+    // Cross guard
+    points.add(DrawingPoint(addNoise(cx - size / 3), addNoise(cy + size / 4)))
+    points.add(DrawingPoint(addNoise(cx + size / 3), addNoise(cy + size / 4)))
+    points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 4)))
+    // Handle
     points.add(DrawingPoint(addNoise(cx), addNoise(cy + size / 2)))
 }
