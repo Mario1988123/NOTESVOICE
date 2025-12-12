@@ -26,6 +26,9 @@ class VoiceRecognitionManager(private val context: Context) {
     private val _microphoneStartTime = MutableStateFlow<Long?>(null)
     val microphoneStartTime: StateFlow<Long?> = _microphoneStartTime.asStateFlow()
 
+    private val _partialText = MutableStateFlow<String?>(null)
+    val partialText: StateFlow<String?> = _partialText.asStateFlow()
+
     private var speechRecognizer: SpeechRecognizer? = null
     private var isWaitingForContinuousListening = false
 
@@ -78,6 +81,9 @@ class VoiceRecognitionManager(private val context: Context) {
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.let {
                 Log.d(TAG, "Partial results: $it")
+                if (it.isNotEmpty()) {
+                    _partialText.value = it[0]
+                }
             }
         }
 
@@ -104,12 +110,12 @@ class VoiceRecognitionManager(private val context: Context) {
 
     private fun restartListeningIfNeeded() {
         if (isWaitingForContinuousListening) {
-            // Restart listening after a short delay
+            // Restart listening after a delay
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 if (isWaitingForContinuousListening) {
                     startListening()
                 }
-            }, 300)
+            }, 1000)
         }
     }
 
@@ -151,9 +157,9 @@ class VoiceRecognitionManager(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            // Silencio más largo para evitar que se reinicie constantemente
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000)
+            // Tiempo de silencio moderado
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
             // Intentar evitar sonidos del sistema (no siempre funciona)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }

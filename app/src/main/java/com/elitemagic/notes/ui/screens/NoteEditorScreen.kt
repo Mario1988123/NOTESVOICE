@@ -81,11 +81,13 @@ fun NoteEditorScreen(
 
     val isListening by voiceManager.isListening.collectAsState()
     val recognizedText by voiceManager.recognizedText.collectAsState()
+    val partialText by voiceManager.partialText.collectAsState()
     val error by voiceManager.error.collectAsState()
     val microphoneStartTime by voiceManager.microphoneStartTime.collectAsState()
 
     var noteCreationTime by remember { mutableStateOf<Long?>(null) }
     var alreadyDrawnCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var lastRecognizedText by remember { mutableStateOf("") }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -106,24 +108,35 @@ fun NoteEditorScreen(
         }
     }
 
-    // Handle recognized text - ESCRIBIR TODO en la nota
+    // Handle final recognized text - ESCRIBIR TODO en la nota
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
-            // Guardar timestamp del micrófono
-            microphoneStartTime?.let { timestamp ->
-                noteCreationTime = timestamp
-            }
+            if (text != lastRecognizedText) {
+                // Guardar timestamp del micrófono
+                microphoneStartTime?.let { timestamp ->
+                    noteCreationTime = timestamp
+                }
 
-            // ESCRIBIR TODO el texto reconocido en la nota
-            content = if (content.isEmpty()) {
-                text
-            } else {
-                "$content $text"
-            }
+                // ESCRIBIR TODO el texto reconocido en la nota
+                content = if (content.isEmpty()) {
+                    text
+                } else {
+                    "$content $text"
+                }
 
-            voiceManager.clearRecognizedText()
+                lastRecognizedText = text
+                voiceManager.clearRecognizedText()
+            }
         }
     }
+
+    // Show partial results in real-time (optional - comentado por ahora)
+    /*LaunchedEffect(partialText) {
+        partialText?.let { text ->
+            // Mostrar texto parcial mientras habla
+            android.util.Log.d("NoteEditor", "Partial: $text")
+        }
+    }*/
 
     // Detectar cartas automáticamente del contenido
     LaunchedEffect(content) {
