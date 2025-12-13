@@ -3,19 +3,20 @@ package com.elitemagic.notes.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -23,24 +24,22 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elitemagic.notes.data.CardsRepository
+import com.elitemagic.notes.model.DrawingPath
+import com.elitemagic.notes.model.DrawingPoint
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-data class DrawingPath(
-    val points: MutableList<Offset> = mutableListOf(),
-    val color: Color = Color.Black,
-    val strokeWidth: Float = 5f
-)
-
-data class CardDrawing(
+data class CardInfo(
     val name: String,
     val suit: String,
-    val paths: MutableList<DrawingPath> = mutableListOf()
+    val fullName: String
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,19 +47,22 @@ data class CardDrawing(
 fun TasksScreen(
     onNavigateToNotes: () -> Unit
 ) {
+    val context = LocalContext.current
+    val cardsRepository = remember { CardsRepository(context) }
+
     var showCardMenu by remember { mutableStateOf(false) }
     var longPressTriggered by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     // Crear las 52 cartas de poker
     val cards = remember {
         val suits = listOf("♥ Corazones", "♦ Diamantes", "♣ Tréboles", "♠ Picas")
         val ranks = listOf("As", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K")
-        val cardsList = mutableListOf<CardDrawing>()
+        val cardsList = mutableListOf<CardInfo>()
 
         for (suit in suits) {
             for (rank in ranks) {
-                cardsList.add(CardDrawing(rank, suit))
+                val fullName = "$rank de $suit"
+                cardsList.add(CardInfo(rank, suit, fullName))
             }
         }
         cardsList
@@ -69,6 +71,7 @@ fun TasksScreen(
     if (showCardMenu) {
         CardMenuScreen(
             cards = cards,
+            cardsRepository = cardsRepository,
             onClose = { showCardMenu = false }
         )
     } else {
@@ -145,18 +148,10 @@ fun TasksScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = "Info",
-                        modifier = Modifier.size(64.dp),
-                        tint = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Mantén pulsado para acceder\nal menú de cartas mágicas",
+                        "No hay tareas",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
+                        color = Color.Gray
                     )
                 }
             }
@@ -175,14 +170,16 @@ fun TasksScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardMenuScreen(
-    cards: List<CardDrawing>,
+    cards: List<CardInfo>,
+    cardsRepository: CardsRepository,
     onClose: () -> Unit
 ) {
-    var selectedCard by remember { mutableStateOf<CardDrawing?>(null) }
+    var selectedCard by remember { mutableStateOf<CardInfo?>(null) }
 
     if (selectedCard != null) {
         CardDrawingScreen(
             card = selectedCard!!,
+            cardsRepository = cardsRepository,
             onBack = { selectedCard = null }
         )
     } else {
@@ -220,6 +217,7 @@ fun CardMenuScreen(
                 items(cards) { card ->
                     CardItem(
                         card = card,
+                        hasDrawing = cardsRepository.hasCardDrawing(card.fullName),
                         onClick = { selectedCard = card }
                     )
                 }
@@ -231,7 +229,8 @@ fun CardMenuScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardItem(
-    card: CardDrawing,
+    card: CardInfo,
+    hasDrawing: Boolean,
     onClick: () -> Unit
 ) {
     val suitColor = when {
@@ -276,7 +275,7 @@ fun CardItem(
                 )
 
                 // Indicador si ya tiene dibujos
-                if (card.paths.isNotEmpty()) {
+                if (hasDrawing) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Icon(
                         Icons.Default.Check,
@@ -293,11 +292,35 @@ fun CardItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardDrawingScreen(
-    card: CardDrawing,
+    card: CardInfo,
+    cardsRepository: CardsRepository,
     onBack: () -> Unit
 ) {
-    var currentPath by remember { mutableStateOf<DrawingPath?>(null) }
+    // Cargar dibujos guardados o lista vacía
+    var drawingPaths by remember {
+        mutableStateOf(cardsRepository.getCardDrawing(card.fullName) ?: emptyList())
+    }
+    var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
     var strokeWidth by remember { mutableStateOf(5f) }
+    var selectedColor by remember { mutableStateOf(Color.Black) }
+
+    // Colores disponibles
+    val availableColors = listOf(
+        Color.Black,
+        Color.Red,
+        Color.Blue,
+        Color(0xFF4CAF50), // Green
+        Color(0xFFFF9800), // Orange
+        Color(0xFF9C27B0), // Purple
+        Color(0xFF795548)  // Brown
+    )
+
+    // Guardar automáticamente cuando cambien los paths
+    LaunchedEffect(drawingPaths) {
+        if (drawingPaths.isNotEmpty()) {
+            cardsRepository.saveCardDrawing(card.fullName, drawingPaths)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -305,7 +328,7 @@ fun CardDrawingScreen(
                 title = {
                     Column {
                         Text(
-                            "${card.name} de ${card.suit}",
+                            card.fullName,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -324,18 +347,19 @@ fun CardDrawingScreen(
                 actions = {
                     // Botón para borrar todo
                     IconButton(onClick = {
-                        card.paths.clear()
+                        drawingPaths = emptyList()
+                        cardsRepository.deleteCardDrawing(card.fullName)
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = "Borrar todo")
                     }
                     // Botón para deshacer último trazo
                     IconButton(
                         onClick = {
-                            if (card.paths.isNotEmpty()) {
-                                card.paths.removeAt(card.paths.size - 1)
+                            if (drawingPaths.isNotEmpty()) {
+                                drawingPaths = drawingPaths.dropLast(1)
                             }
                         },
-                        enabled = card.paths.isNotEmpty()
+                        enabled = drawingPaths.isNotEmpty()
                     ) {
                         Icon(Icons.Default.Undo, contentDescription = "Deshacer")
                     }
@@ -347,46 +371,72 @@ fun CardDrawingScreen(
             )
         },
         bottomBar = {
-            // Controles de grosor
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
                 shadowElevation = 8.dp
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Text("Grosor:", fontWeight = FontWeight.Medium)
-
-                    Button(
-                        onClick = { strokeWidth = 3f },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (strokeWidth == 3f) MaterialTheme.colorScheme.primary else Color.LightGray
-                        )
+                    // Selector de color
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Fino")
+                        Text("Color:", fontWeight = FontWeight.Medium)
+                        availableColors.forEach { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(if (color == selectedColor) 42.dp else 36.dp)
+                                    .background(color, CircleShape)
+                                    .border(
+                                        width = if (color == selectedColor) 3.dp else 1.dp,
+                                        color = if (color == selectedColor) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { selectedColor = color }
+                            )
+                        }
                     }
 
-                    Button(
-                        onClick = { strokeWidth = 5f },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (strokeWidth == 5f) MaterialTheme.colorScheme.primary else Color.LightGray
-                        )
-                    ) {
-                        Text("Normal")
-                    }
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
-                        onClick = { strokeWidth = 8f },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (strokeWidth == 8f) MaterialTheme.colorScheme.primary else Color.LightGray
-                        )
+                    // Selector de grosor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Grueso")
+                        Text("Grosor:", fontWeight = FontWeight.Medium)
+
+                        Button(
+                            onClick = { strokeWidth = 3f },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (strokeWidth == 3f) MaterialTheme.colorScheme.primary else Color.LightGray
+                            )
+                        ) {
+                            Text("Fino")
+                        }
+
+                        Button(
+                            onClick = { strokeWidth = 5f },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (strokeWidth == 5f) MaterialTheme.colorScheme.primary else Color.LightGray
+                            )
+                        ) {
+                            Text("Normal")
+                        }
+
+                        Button(
+                            onClick = { strokeWidth = 8f },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (strokeWidth == 8f) MaterialTheme.colorScheme.primary else Color.LightGray
+                            )
+                        ) {
+                            Text("Grueso")
+                        }
                     }
                 }
             }
@@ -405,34 +455,38 @@ fun CardDrawingScreen(
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { offset ->
-                                currentPath = DrawingPath(
-                                    points = mutableListOf(offset),
-                                    color = Color.Black,
-                                    strokeWidth = strokeWidth
-                                )
+                                currentPath = listOf(DrawingPoint(offset.x, offset.y))
                             },
                             onDrag = { change, _ ->
-                                currentPath?.points?.add(change.position)
+                                currentPath = currentPath + DrawingPoint(change.position.x, change.position.y)
                             },
                             onDragEnd = {
-                                currentPath?.let {
-                                    if (it.points.size > 1) {
-                                        card.paths.add(it)
-                                    }
+                                if (currentPath.size > 1) {
+                                    val newPath = DrawingPath(
+                                        points = currentPath,
+                                        color = selectedColor.toArgb().toLong(),
+                                        strokeWidth = strokeWidth
+                                    )
+                                    drawingPaths = drawingPaths + newPath
                                 }
-                                currentPath = null
+                                currentPath = emptyList()
                             }
                         )
                     }
             ) {
                 // Dibujar todos los trazos guardados
-                card.paths.forEach { path ->
+                drawingPaths.forEach { path ->
                     drawPath(path)
                 }
 
                 // Dibujar el trazo actual
-                currentPath?.let { path ->
-                    drawPath(path)
+                if (currentPath.size > 1) {
+                    val tempPath = DrawingPath(
+                        points = currentPath,
+                        color = selectedColor.toArgb().toLong(),
+                        strokeWidth = strokeWidth
+                    )
+                    drawPath(tempPath)
                 }
             }
         }
@@ -444,7 +498,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPath(drawingPat
     if (drawingPath.points.size < 2) return
 
     val path = Path()
-    path.moveTo(drawingPath.points[0].x, drawingPath.points[0].y)
+    val firstPoint = drawingPath.points[0]
+    path.moveTo(firstPoint.x, firstPoint.y)
 
     for (i in 1 until drawingPath.points.size) {
         val prevPoint = drawingPath.points[i - 1]
@@ -462,9 +517,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPath(drawingPat
     val lastPoint = drawingPath.points.last()
     path.lineTo(lastPoint.x, lastPoint.y)
 
+    val color = Color(drawingPath.color.toULong())
+
     drawPath(
         path = path,
-        color = drawingPath.color,
+        color = color,
         style = Stroke(
             width = drawingPath.strokeWidth,
             cap = StrokeCap.Round,

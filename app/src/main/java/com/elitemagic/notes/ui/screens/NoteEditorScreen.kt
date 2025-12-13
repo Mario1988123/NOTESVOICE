@@ -55,6 +55,7 @@ fun NoteEditorScreen(
     val scope = rememberCoroutineScope()
 
     val gson = remember { Gson() }
+    val cardsRepository = remember { com.elitemagic.notes.data.CardsRepository(context) }
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
@@ -122,8 +123,18 @@ fun NoteEditorScreen(
                 // Es una carta - NO escribir, solo dibujar
                 detectedCards.forEach { card ->
                     if (!alreadyDrawnCards.contains(card)) {
-                        val cardPath = createCardDrawing(card)
-                        drawingPaths = drawingPaths + cardPath
+                        // Intentar cargar el dibujo guardado del menú oculto
+                        val savedPaths = cardsRepository.getCardDrawing(card)
+
+                        if (savedPaths != null && savedPaths.isNotEmpty()) {
+                            // Usar el dibujo guardado por el usuario
+                            drawingPaths = drawingPaths + savedPaths
+                        } else {
+                            // Fallback: usar dibujo automático
+                            val cardPath = createCardDrawing(card)
+                            drawingPaths = drawingPaths + cardPath
+                        }
+
                         alreadyDrawnCards = alreadyDrawnCards + card
                         // Activar modo dibujo automáticamente
                         isDrawingMode = true
