@@ -228,6 +228,7 @@ fun CardMenuScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardItem(
     card: CardDrawing,
