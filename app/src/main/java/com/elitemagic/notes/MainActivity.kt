@@ -23,6 +23,7 @@ import com.elitemagic.notes.data.NotesRepository
 import com.elitemagic.notes.model.Note
 import com.elitemagic.notes.ui.screens.NoteEditorScreen
 import com.elitemagic.notes.ui.screens.NotesListScreen
+import com.elitemagic.notes.ui.screens.TasksScreen
 import com.elitemagic.notes.ui.theme.EliteMagicNotesTheme
 import com.elitemagic.notes.viewmodel.NotesViewModel
 import com.elitemagic.notes.viewmodel.NotesViewModelFactory
@@ -80,6 +81,19 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
                 },
                 onNewNoteClick = {
                     navController.navigate("note_editor/new")
+                },
+                onNavigateToTasks = {
+                    navController.navigate("tasks")
+                }
+            )
+        }
+
+        composable("tasks") {
+            TasksScreen(
+                onNavigateToNotes = {
+                    navController.navigate("notes_list") {
+                        popUpTo("notes_list") { inclusive = true }
+                    }
                 }
             )
         }
