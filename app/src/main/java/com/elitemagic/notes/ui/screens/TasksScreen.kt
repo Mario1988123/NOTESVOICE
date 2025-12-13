@@ -55,7 +55,7 @@ fun TasksScreen(
 
     // Crear las 52 cartas de poker
     val cards = remember {
-        val suits = listOf("♥ Corazones", "♦ Diamantes", "♣ Tréboles", "♠ Picas")
+        val suits = listOf("Corazones", "Diamantes", "Tréboles", "Picas")
         val ranks = listOf("As", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K")
         val cardsList = mutableListOf<CardInfo>()
 
