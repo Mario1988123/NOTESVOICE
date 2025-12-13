@@ -329,11 +329,9 @@ fun NoteEditorScreen(
                         },
                         onPathEnd = {
                             if (currentPath.isNotEmpty()) {
-                                val argb = selectedColor.toArgb()
-                                val colorLong = (argb.toLong() and 0xFFFFFFFFL)
                                 drawingPaths = drawingPaths + DrawingPath(
                                     points = currentPath,
-                                    color = colorLong,
+                                    color = selectedColor.value.toLong(),
                                     strokeWidth = strokeWidth
                                 )
                                 currentPath = emptyList()
@@ -624,11 +622,9 @@ fun createCardDrawing(cardName: String): DrawingPath {
         lowerName.contains("bastos") || lowerName.contains("basto") -> addClubBig(points, centerX, suitY, random)
     }
 
-    val argb = Color.Black.toArgb()
-    val colorLong = (argb.toLong() and 0xFFFFFFFFL)
     return DrawingPath(
         points = points,
-        color = colorLong,
+        color = Color.Black.value.toLong(),
         strokeWidth = 8f  // Más grueso
     )
 }

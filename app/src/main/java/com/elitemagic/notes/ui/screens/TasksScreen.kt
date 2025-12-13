@@ -484,11 +484,9 @@ fun CardDrawingScreen(
                 onPathEnd = {
                     android.util.Log.d("CardDrawing", "onPathEnd called, currentPath size: ${currentPath.size}")
                     if (currentPath.isNotEmpty()) {
-                        val argb = selectedColor.toArgb()
-                        val colorLong = (argb.toLong() and 0xFFFFFFFFL)
                         val newPath = DrawingPath(
                             points = currentPath,
-                            color = colorLong,
+                            color = selectedColor.value.toLong(),
                             strokeWidth = strokeWidth
                         )
                         android.util.Log.d("CardDrawing", "Adding path with ${newPath.points.size} points")
