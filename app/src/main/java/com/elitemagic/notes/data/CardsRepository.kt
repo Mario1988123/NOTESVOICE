@@ -74,8 +74,15 @@ class CardsRepository(context: Context) {
      */
     fun saveCardDrawing(cardName: String, paths: List<DrawingPath>) {
         val normalizedName = normalizeCardName(cardName)
+        android.util.Log.d("CardsRepository", "Guardando '$cardName' -> normalizado a '$normalizedName'")
+        android.util.Log.d("CardsRepository", "Guardando ${paths.size} paths")
         val json = gson.toJson(paths)
+        android.util.Log.d("CardsRepository", "JSON length: ${json.length}")
         prefs.edit().putString(normalizedName, json).apply()
+
+        // Verificar que se guardó
+        val verificar = prefs.getString(normalizedName, null)
+        android.util.Log.d("CardsRepository", "Verificación: ${if (verificar != null) "OK (${verificar.length} chars)" else "FALLÓ"}")
     }
 
     /**
@@ -83,12 +90,23 @@ class CardsRepository(context: Context) {
      */
     fun getCardDrawing(cardName: String): List<DrawingPath>? {
         val normalizedName = normalizeCardName(cardName)
-        val json = prefs.getString(normalizedName, null) ?: return null
+        android.util.Log.d("CardsRepository", "Cargando '$cardName' -> normalizado a '$normalizedName'")
+        val json = prefs.getString(normalizedName, null)
+
+        if (json == null) {
+            android.util.Log.d("CardsRepository", "No existe en SharedPreferences")
+            return null
+        }
+
+        android.util.Log.d("CardsRepository", "JSON encontrado: ${json.length} chars")
 
         return try {
             val type = object : TypeToken<List<DrawingPath>>() {}.type
-            gson.fromJson<List<DrawingPath>>(json, type)
+            val result = gson.fromJson<List<DrawingPath>>(json, type)
+            android.util.Log.d("CardsRepository", "Parseado correctamente: ${result.size} paths")
+            result
         } catch (e: Exception) {
+            android.util.Log.e("CardsRepository", "Error al parsear JSON", e)
             null
         }
     }

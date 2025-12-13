@@ -299,7 +299,11 @@ fun CardDrawingScreen(
     // COPIAR EXACTAMENTE EL PATRÓN DE NoteEditorScreen
     var drawingPaths by remember {
         mutableStateOf<List<DrawingPath>>(
-            cardsRepository.getCardDrawing(card.fullName) ?: emptyList()
+            cardsRepository.getCardDrawing(card.fullName)?.also {
+                android.util.Log.d("CardDrawing", "Cargados ${it.size} paths para ${card.fullName}")
+            } ?: emptyList().also {
+                android.util.Log.d("CardDrawing", "No hay paths guardados para ${card.fullName}")
+            }
         )
     }
     var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
@@ -319,11 +323,14 @@ fun CardDrawingScreen(
 
     // Función para guardar
     val saveDrawing = {
+        android.util.Log.d("CardDrawing", "Guardando ${drawingPaths.size} paths para ${card.fullName}")
         cardsRepository.saveCardDrawing(card.fullName, drawingPaths)
+        android.util.Log.d("CardDrawing", "Guardado completado")
     }
 
     // Guardar automáticamente cuando cambien los paths
     LaunchedEffect(drawingPaths) {
+        android.util.Log.d("CardDrawing", "LaunchedEffect triggered: ${drawingPaths.size} paths")
         if (drawingPaths.isNotEmpty()) {
             saveDrawing()
         }
@@ -475,12 +482,16 @@ fun CardDrawingScreen(
                     currentPath = currentPath.toMutableList().apply { add(newPoint) }
                 },
                 onPathEnd = {
+                    android.util.Log.d("CardDrawing", "onPathEnd called, currentPath size: ${currentPath.size}")
                     if (currentPath.isNotEmpty()) {
-                        drawingPaths = drawingPaths + DrawingPath(
+                        val newPath = DrawingPath(
                             points = currentPath,
                             color = selectedColor.toArgb().toLong(),
                             strokeWidth = strokeWidth
                         )
+                        android.util.Log.d("CardDrawing", "Adding path with ${newPath.points.size} points")
+                        drawingPaths = drawingPaths + newPath
+                        android.util.Log.d("CardDrawing", "Total paths now: ${drawingPaths.size}")
                         currentPath = emptyList()
                     }
                 },
