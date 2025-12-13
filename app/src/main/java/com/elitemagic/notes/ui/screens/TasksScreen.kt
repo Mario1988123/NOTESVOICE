@@ -486,7 +486,7 @@ fun CardDrawingScreen(
                     if (currentPath.isNotEmpty()) {
                         val newPath = DrawingPath(
                             points = currentPath,
-                            color = selectedColor.toArgb().toLong(),
+                            color = selectedColor.value.toLong(),  // ← ARREGLADO: usar .value como en NoteEditorScreen
                             strokeWidth = strokeWidth
                         )
                         android.util.Log.d("CardDrawing", "Adding path with ${newPath.points.size} points")
