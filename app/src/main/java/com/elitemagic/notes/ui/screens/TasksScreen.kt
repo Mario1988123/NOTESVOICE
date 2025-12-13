@@ -315,10 +315,20 @@ fun CardDrawingScreen(
         Color(0xFF795548)  // Brown
     )
 
+    // Función para guardar
+    val saveDrawing = {
+        cardsRepository.saveCardDrawing(card.fullName, drawingPaths)
+    }
+
     // Guardar automáticamente cuando cambien los paths
     LaunchedEffect(drawingPaths) {
-        if (drawingPaths.isNotEmpty()) {
-            cardsRepository.saveCardDrawing(card.fullName, drawingPaths)
+        saveDrawing()
+    }
+
+    // Guardar cuando se destruye el composable
+    DisposableEffect(Unit) {
+        onDispose {
+            saveDrawing()
         }
     }
 
@@ -340,7 +350,10 @@ fun CardDrawingScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        saveDrawing()
+                        onBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 },
