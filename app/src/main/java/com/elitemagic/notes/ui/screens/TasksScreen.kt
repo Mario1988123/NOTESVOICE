@@ -301,7 +301,7 @@ fun CardDrawingScreen(
         mutableStateOf<List<DrawingPath>>(
             cardsRepository.getCardDrawing(card.fullName)?.also {
                 android.util.Log.d("CardDrawing", "Cargados ${it.size} paths para ${card.fullName}")
-            } ?: emptyList().also {
+            } ?: emptyList<DrawingPath>().also {
                 android.util.Log.d("CardDrawing", "No hay paths guardados para ${card.fullName}")
             }
         )
