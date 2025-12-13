@@ -448,86 +448,102 @@ fun CardDrawingScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            Canvas(
+            // Usar el mismo DrawingCanvas que funciona en NoteEditorScreen
+            DrawingCanvasForCards(
+                paths = drawingPaths,
+                currentPath = currentPath,
+                currentColor = selectedColor,
+                currentStrokeWidth = strokeWidth,
+                onPathUpdate = { newPoint ->
+                    currentPath = currentPath + newPoint
+                },
+                onPathEnd = {
+                    if (currentPath.isNotEmpty()) {
+                        drawingPaths = drawingPaths + DrawingPath(
+                            points = currentPath,
+                            color = selectedColor.toArgb().toLong(),
+                            strokeWidth = strokeWidth
+                        )
+                        currentPath = emptyList()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .border(2.dp, Color.LightGray)
-                    .background(Color.Transparent)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                currentPath = listOf(DrawingPoint(offset.x, offset.y))
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                currentPath = currentPath + DrawingPoint(change.position.x, change.position.y)
-                            },
-                            onDragEnd = {
-                                if (currentPath.size > 1) {
-                                    val newPath = DrawingPath(
-                                        points = currentPath,
-                                        color = selectedColor.toArgb().toLong(),
-                                        strokeWidth = strokeWidth
-                                    )
-                                    drawingPaths = drawingPaths + newPath
-                                }
-                                currentPath = emptyList()
-                            }
-                        )
-                    }
-            ) {
-                // Dibujar todos los trazos guardados
-                drawingPaths.forEach { path ->
-                    drawPath(path)
-                }
-
-                // Dibujar el trazo actual
-                if (currentPath.isNotEmpty()) {
-                    val tempPath = DrawingPath(
-                        points = currentPath,
-                        color = selectedColor.toArgb().toLong(),
-                        strokeWidth = strokeWidth
-                    )
-                    drawPath(tempPath)
-                }
-            }
+            )
         }
     }
 }
 
-// Extensión para dibujar un path
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPath(drawingPath: DrawingPath) {
-    if (drawingPath.points.size < 2) return
+// Canvas de dibujo - MISMO CÓDIGO QUE EN NoteEditorScreen
+@Composable
+fun DrawingCanvasForCards(
+    paths: List<DrawingPath>,
+    currentPath: List<DrawingPoint>,
+    currentColor: Color,
+    currentStrokeWidth: Float,
+    onPathUpdate: (DrawingPoint) -> Unit,
+    onPathEnd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Canvas(
+        modifier = modifier
+            .background(Color.Transparent)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        onPathUpdate(DrawingPoint(offset.x, offset.y))
+                    },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        onPathUpdate(DrawingPoint(change.position.x, change.position.y))
+                    },
+                    onDragEnd = {
+                        onPathEnd()
+                    }
+                )
+            }
+    ) {
+        // Draw existing paths
+        paths.forEach { drawingPath ->
+            val path = Path()
+            drawingPath.points.forEachIndexed { index, point ->
+                if (index == 0) {
+                    path.moveTo(point.x, point.y)
+                } else {
+                    path.lineTo(point.x, point.y)
+                }
+            }
+            drawPath(
+                path = path,
+                color = Color(drawingPath.color.toULong()),
+                style = Stroke(
+                    width = drawingPath.strokeWidth,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+        }
 
-    val path = Path()
-    val firstPoint = drawingPath.points[0]
-    path.moveTo(firstPoint.x, firstPoint.y)
-
-    for (i in 1 until drawingPath.points.size) {
-        val prevPoint = drawingPath.points[i - 1]
-        val currentPoint = drawingPath.points[i]
-        val midPoint = Offset(
-            (prevPoint.x + currentPoint.x) / 2,
-            (prevPoint.y + currentPoint.y) / 2
-        )
-        path.quadraticBezierTo(
-            prevPoint.x, prevPoint.y,
-            midPoint.x, midPoint.y
-        )
+        // Draw current path with current color and stroke
+        if (currentPath.isNotEmpty()) {
+            val path = Path()
+            currentPath.forEachIndexed { index, point ->
+                if (index == 0) {
+                    path.moveTo(point.x, point.y)
+                } else {
+                    path.lineTo(point.x, point.y)
+                }
+            }
+            drawPath(
+                path = path,
+                color = currentColor,
+                style = Stroke(
+                    width = currentStrokeWidth,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+        }
     }
-
-    val lastPoint = drawingPath.points.last()
-    path.lineTo(lastPoint.x, lastPoint.y)
-
-    val color = Color(drawingPath.color.toULong())
-
-    drawPath(
-        path = path,
-        color = color,
-        style = Stroke(
-            width = drawingPath.strokeWidth,
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round
-        )
-    )
 }
