@@ -330,7 +330,7 @@ fun NoteEditorScreen(
                             if (currentPath.isNotEmpty()) {
                                 drawingPaths = drawingPaths + DrawingPath(
                                     points = currentPath,
-                                    color = selectedColor.value.toLong(),
+                                    color = selectedColor.toArgb().toUInt().toLong(),
                                     strokeWidth = strokeWidth
                                 )
                                 currentPath = emptyList()
@@ -623,7 +623,7 @@ fun createCardDrawing(cardName: String): DrawingPath {
 
     return DrawingPath(
         points = points,
-        color = Color.Black.value.toLong(),
+        color = Color.Black.toArgb().toUInt().toLong(),
         strokeWidth = 8f  // Más grueso
     )
 }
