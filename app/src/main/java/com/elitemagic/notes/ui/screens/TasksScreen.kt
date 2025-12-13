@@ -452,12 +452,14 @@ fun CardDrawingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .border(2.dp, Color.LightGray)
+                    .background(Color.Transparent)
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { offset ->
                                 currentPath = listOf(DrawingPoint(offset.x, offset.y))
                             },
                             onDrag = { change, _ ->
+                                change.consume()
                                 currentPath = currentPath + DrawingPoint(change.position.x, change.position.y)
                             },
                             onDragEnd = {
@@ -480,7 +482,7 @@ fun CardDrawingScreen(
                 }
 
                 // Dibujar el trazo actual
-                if (currentPath.size > 1) {
+                if (currentPath.isNotEmpty()) {
                     val tempPath = DrawingPath(
                         points = currentPath,
                         color = selectedColor.toArgb().toLong(),
