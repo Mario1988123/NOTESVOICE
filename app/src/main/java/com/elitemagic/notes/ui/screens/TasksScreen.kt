@@ -296,11 +296,11 @@ fun CardDrawingScreen(
     cardsRepository: CardsRepository,
     onBack: () -> Unit
 ) {
-    // Cargar dibujos guardados o lista vacía - USAR mutableStateListOf para detectar cambios
-    val drawingPaths = remember {
-        androidx.compose.runtime.mutableStateListOf<DrawingPath>().apply {
-            addAll(cardsRepository.getCardDrawing(card.fullName) ?: emptyList())
-        }
+    // COPIAR EXACTAMENTE EL PATRÓN DE NoteEditorScreen
+    var drawingPaths by remember {
+        mutableStateOf<List<DrawingPath>>(
+            cardsRepository.getCardDrawing(card.fullName) ?: emptyList()
+        )
     }
     var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
     var strokeWidth by remember { mutableStateOf(5f) }
@@ -319,11 +319,11 @@ fun CardDrawingScreen(
 
     // Función para guardar
     val saveDrawing = {
-        cardsRepository.saveCardDrawing(card.fullName, drawingPaths.toList())
+        cardsRepository.saveCardDrawing(card.fullName, drawingPaths)
     }
 
     // Guardar automáticamente cuando cambien los paths
-    LaunchedEffect(drawingPaths.size) {
+    LaunchedEffect(drawingPaths) {
         if (drawingPaths.isNotEmpty()) {
             saveDrawing()
         }
@@ -364,7 +364,7 @@ fun CardDrawingScreen(
                 actions = {
                     // Botón para borrar todo
                     IconButton(onClick = {
-                        drawingPaths.clear()
+                        drawingPaths = emptyList()
                         cardsRepository.deleteCardDrawing(card.fullName)
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = "Borrar todo")
@@ -373,7 +373,7 @@ fun CardDrawingScreen(
                     IconButton(
                         onClick = {
                             if (drawingPaths.isNotEmpty()) {
-                                drawingPaths.removeAt(drawingPaths.size - 1)
+                                drawingPaths = drawingPaths.dropLast(1)
                             }
                         },
                         enabled = drawingPaths.isNotEmpty()
@@ -465,23 +465,21 @@ fun CardDrawingScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // Usar el mismo DrawingCanvas que funciona en NoteEditorScreen
+            // MISMO CÓDIGO QUE DrawingCanvas en NoteEditorScreen
             DrawingCanvasForCards(
-                paths = drawingPaths.toList(),
+                paths = drawingPaths,
                 currentPath = currentPath,
                 currentColor = selectedColor,
                 currentStrokeWidth = strokeWidth,
                 onPathUpdate = { newPoint ->
-                    currentPath = currentPath + newPoint
+                    currentPath = currentPath.toMutableList().apply { add(newPoint) }
                 },
                 onPathEnd = {
                     if (currentPath.isNotEmpty()) {
-                        drawingPaths.add(
-                            DrawingPath(
-                                points = currentPath,
-                                color = selectedColor.toArgb().toLong(),
-                                strokeWidth = strokeWidth
-                            )
+                        drawingPaths = drawingPaths + DrawingPath(
+                            points = currentPath,
+                            color = selectedColor.toArgb().toLong(),
+                            strokeWidth = strokeWidth
                         )
                         currentPath = emptyList()
                     }
