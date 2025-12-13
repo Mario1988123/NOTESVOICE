@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -31,7 +33,8 @@ import java.util.*
 fun NotesListScreen(
     notes: List<Note>,
     onNoteClick: (Note) -> Unit,
-    onNewNoteClick: () -> Unit
+    onNewNoteClick: () -> Unit,
+    onNavigateToTasks: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -79,7 +82,7 @@ fun NotesListScreen(
                     onClick = { },
                     icon = {
                         Icon(
-                            androidx.compose.material.icons.Icons.Default.Settings,
+                            Icons.Default.Description,
                             contentDescription = "Notas"
                         )
                     },
@@ -87,10 +90,10 @@ fun NotesListScreen(
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = onNavigateToTasks,
                     icon = {
                         Icon(
-                            androidx.compose.material.icons.Icons.Default.Settings,
+                            Icons.Default.CheckCircle,
                             contentDescription = "Tareas"
                         )
                     },
