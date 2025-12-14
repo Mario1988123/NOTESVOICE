@@ -51,21 +51,84 @@ fun NotesListScreen(
     notes: List<Note>,
     onNoteClick: (Note) -> Unit,
     onNewNoteClick: () -> Unit,
-    onNewNoteWithVoice: () -> Unit = {},
+    onCreateNoteWithCard: (Note) -> Unit = {},
     onDeleteNote: (Note) -> Unit = {},
     onNavigateToTasks: () -> Unit = {},
     voiceManager: VoiceRecognitionManager? = null
 ) {
     val context = LocalContext.current
     val predictionRepo = remember { PredictionModeRepository(context) }
+    val cardsRepository = remember { com.elitemagic.notes.data.CardsRepository(context) }
+    val gson = remember { Gson() }
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var isPredictionMode by remember { mutableStateOf(predictionRepo.isPredictionMode()) }
+    var isListeningForCard by remember { mutableStateOf(false) }
+
+    val isListening by voiceManager?.isListening?.collectAsState() ?: remember { mutableStateOf(false) }
+    val recognizedText by voiceManager?.recognizedText?.collectAsState() ?: remember { mutableStateOf<String?>(null) }
+    val error by voiceManager?.error?.collectAsState() ?: remember { mutableStateOf<String?>(null) }
 
     // Actualizar el estado cuando cambia el modo
     LaunchedEffect(showConfigDialog) {
         if (!showConfigDialog) {
             isPredictionMode = predictionRepo.isPredictionMode()
+        }
+    }
+
+    // DETECTAR Y PROCESAR comandos de cartas en modo predicción
+    LaunchedEffect(recognizedText, isListeningForCard) {
+        if (isListeningForCard && recognizedText != null) {
+            android.util.Log.d("NotesListScreen", "Texto reconocido: $recognizedText")
+
+            // Detectar si es una carta COMPLETA (número + palo)
+            val detectedCards = detectCardsInText(recognizedText!!)
+
+            if (detectedCards.isNotEmpty()) {
+                // Es una carta COMPLETA - crear nota
+                android.util.Log.d("NotesListScreen", "Carta detectada: ${detectedCards.first()}")
+
+                val card = detectedCards.first()
+                val savedPaths = cardsRepository.getCardDrawing(card)
+
+                if (savedPaths != null && savedPaths.isNotEmpty()) {
+                    // Crear nota con el dibujo y fecha personalizada
+                    val drawingJson = gson.toJson(savedPaths)
+                    val timestamp = predictionRepo.getTimestampForNewNote()
+
+                    val newNote = com.elitemagic.notes.model.Note(
+                        title = "",
+                        content = "",
+                        drawingData = drawingJson,
+                        createdAt = timestamp,
+                        updatedAt = timestamp
+                    )
+
+                    // Guardar la nota
+                    onCreateNoteWithCard(newNote)
+
+                    // Parar el micrófono y modo escucha
+                    voiceManager?.stopListening()
+                    isListeningForCard = false
+
+                    android.util.Log.d("NotesListScreen", "Nota creada con carta: $card")
+                }
+
+                voiceManager?.clearRecognizedText()
+            } else {
+                // NO es carta completa - seguir escuchando
+                android.util.Log.d("NotesListScreen", "No es carta completa, continuando escucha")
+                voiceManager?.clearRecognizedText()
+            }
+        }
+    }
+
+    // Reiniciar micrófono automáticamente cuando hay error de timeout
+    LaunchedEffect(error, isListeningForCard, isListening) {
+        if (isListeningForCard && error != null && !isListening) {
+            android.util.Log.d("NotesListScreen", "Error detectado: $error, reiniciando micrófono")
+            kotlinx.coroutines.delay(500)
+            voiceManager?.startListening()
         }
     }
     Scaffold(
@@ -81,15 +144,22 @@ fun NotesListScreen(
                 actions = {
                     IconButton(onClick = {
                         if (isPredictionMode) {
-                            // En modo predicción, abrir nota con micrófono automático
-                            onNewNoteWithVoice()
+                            // En modo predicción, activar/desactivar micrófono
+                            if (isListeningForCard) {
+                                voiceManager?.stopListening()
+                                isListeningForCard = false
+                            } else {
+                                voiceManager?.startListening()
+                                isListeningForCard = true
+                            }
                         } else {
                             // En modo normal, abrir carpetas (no implementado)
                         }
                     }) {
                         Icon(
                             Icons.Default.Folder,
-                            contentDescription = "Carpetas"
+                            contentDescription = "Carpetas",
+                            tint = if (isPredictionMode && isListeningForCard) Color.Red else Color.Gray
                         )
                     }
                     IconButton(onClick = { /* TODO: Open settings */ }) {
@@ -563,4 +633,53 @@ fun DrawingPreview(
             }
         }
     }
+}
+
+/**
+ * Detecta cartas de poker francesas en el texto
+ * Retorna una lista de nombres de cartas detectadas
+ */
+private fun detectCardsInText(text: String): List<String> {
+    val lowerText = text.lowercase()
+    val cards = mutableListOf<String>()
+
+    // Números
+    val numbers = mapOf(
+        "as" to "As",
+        "dos" to "2", "2" to "2",
+        "tres" to "3", "3" to "3",
+        "cuatro" to "4", "4" to "4",
+        "cinco" to "5", "5" to "5",
+        "seis" to "6", "6" to "6",
+        "siete" to "7", "7" to "7",
+        "ocho" to "8", "8" to "8",
+        "nueve" to "9", "9" to "9",
+        "diez" to "10", "10" to "10",
+        "jota" to "J", "j" to "J", "sota" to "J",
+        "reina" to "Q", "q" to "Q", "dama" to "Q",
+        "rey" to "K", "k" to "K"
+    )
+
+    // Palos
+    val suits = mapOf(
+        "corazones" to "Corazones", "corazon" to "Corazones",
+        "diamantes" to "Diamantes", "diamante" to "Diamantes",
+        "treboles" to "Tréboles", "trebol" to "Tréboles",
+        "picas" to "Picas", "pica" to "Picas"
+    )
+
+    // Buscar patrón: número + "de" + palo
+    for ((numKey, numValue) in numbers) {
+        for ((suitKey, suitValue) in suits) {
+            val pattern1 = "$numKey de $suitKey"
+            val pattern2 = "$numKey $suitKey"
+
+            if (lowerText.contains(pattern1) || lowerText.contains(pattern2)) {
+                cards.add("$numValue de $suitValue")
+                break
+            }
+        }
+    }
+
+    return cards
 }

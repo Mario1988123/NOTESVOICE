@@ -50,7 +50,6 @@ import java.util.Locale
 fun NoteEditorScreen(
     note: Note?,
     voiceManager: VoiceRecognitionManager,
-    autoStartVoice: Boolean = false,
     onSave: (Note) -> Unit,
     onBack: () -> Unit
 ) {
@@ -63,7 +62,6 @@ fun NoteEditorScreen(
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
-    var shouldKeepListening by remember { mutableStateOf(autoStartVoice) }
 
     // Load existing drawing paths from note if available
     var drawingPaths by remember {
@@ -143,7 +141,6 @@ fun NoteEditorScreen(
 
                             // PARAR el micrófono después de detectar carta válida
                             voiceManager.stopListening()
-                            shouldKeepListening = false
                         }
                     }
                 }
@@ -155,28 +152,6 @@ fun NoteEditorScreen(
                 // Limpiar para seguir escuchando
                 voiceManager.clearRecognizedText()
                 // NO ESCRIBIR NADA - solo seguir escuchando
-            }
-        }
-    }
-
-    // Activar micrófono automáticamente al abrir en modo predicción
-    LaunchedEffect(autoStartVoice, hasAudioPermission) {
-        if (autoStartVoice && hasAudioPermission && !isListening) {
-            android.util.Log.d("NoteEditor", "Auto-iniciando micrófono en modo predicción")
-            voiceManager.startListening()
-        }
-    }
-
-    // Reiniciar micrófono automáticamente cuando hay error de timeout
-    LaunchedEffect(error, shouldKeepListening) {
-        error?.let { errorMsg ->
-            android.util.Log.d("NoteEditor", "Error detectado: $errorMsg, shouldKeepListening: $shouldKeepListening")
-
-            if (shouldKeepListening && !isListening) {
-                // Reiniciar micrófono después de un breve delay
-                kotlinx.coroutines.delay(500)
-                android.util.Log.d("NoteEditor", "Reiniciando micrófono automáticamente")
-                voiceManager.startListening()
             }
         }
     }
@@ -210,10 +185,8 @@ fun NoteEditorScreen(
                         if (hasAudioPermission) {
                             if (isListening) {
                                 voiceManager.stopListening()
-                                shouldKeepListening = false
                             } else {
                                 voiceManager.startListening()
-                                shouldKeepListening = true
                             }
                         } else {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
