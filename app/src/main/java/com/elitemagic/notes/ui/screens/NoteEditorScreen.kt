@@ -109,21 +109,22 @@ fun NoteEditorScreen(
         }
     }
 
-    // ESCRIBIR texto reconocido
+    // DETECTAR Y PROCESAR comandos de cartas
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
-            android.util.Log.d("NoteEditor", "Writing text: $text")
+            android.util.Log.d("NoteEditor", "Texto reconocido: $text")
 
             // Guardar timestamp del micrófono
             microphoneStartTime?.let { timestamp ->
                 noteCreationTime = timestamp
             }
 
-            // Detectar si es una carta
+            // Detectar si es una carta COMPLETA (número + palo)
             val detectedCards = detectCardsInText(text)
 
             if (detectedCards.isNotEmpty()) {
-                // Es una carta - NO escribir, solo dibujar
+                // Es una carta COMPLETA - procesar
+                android.util.Log.d("NoteEditor", "Carta detectada: ${detectedCards.first()}")
                 detectedCards.forEach { card ->
                     if (!alreadyDrawnCards.contains(card)) {
                         // SOLO cargar si existe el dibujo guardado por el usuario
@@ -135,20 +136,21 @@ fun NoteEditorScreen(
                             alreadyDrawnCards = alreadyDrawnCards + card
                             // Activar modo dibujo automáticamente
                             isDrawingMode = true
+
+                            // PARAR el micrófono después de detectar carta válida
+                            voiceManager.stopListening()
                         }
-                        // Si NO existe dibujo guardado, NO hacer nada (no auto-generar)
                     }
                 }
+                // Limpiar texto reconocido
+                voiceManager.clearRecognizedText()
             } else {
-                // NO es carta - escribir normalmente
-                content = if (content.isEmpty()) {
-                    text
-                } else {
-                    "$content $text"
-                }
+                // NO es carta completa - ignorar y seguir escuchando
+                android.util.Log.d("NoteEditor", "No es carta completa, ignorando: $text")
+                // Limpiar para seguir escuchando
+                voiceManager.clearRecognizedText()
+                // NO ESCRIBIR NADA - solo seguir escuchando
             }
-
-            voiceManager.clearRecognizedText()
         }
     }
 
