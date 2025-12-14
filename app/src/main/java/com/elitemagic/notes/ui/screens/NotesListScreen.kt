@@ -1,5 +1,6 @@
 package com.elitemagic.notes.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,12 +21,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elitemagic.notes.model.DrawingPath
+import com.elitemagic.notes.model.DrawingPoint
 import com.elitemagic.notes.model.Note
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -186,8 +196,20 @@ fun NoteCard(
     val dateFormat = SimpleDateFormat("d MMMM HH:mm", Locale("es", "ES"))
     val formattedDate = dateFormat.format(Date(note.updatedAt))
 
-    // Detectar si tiene dibujo
-    val hasDrawing = !note.drawingData.isNullOrEmpty()
+    // Parsear paths del dibujo si existen
+    val drawingPaths = remember(note.drawingData) {
+        note.drawingData?.let { json ->
+            try {
+                val gson = Gson()
+                val type = object : TypeToken<List<DrawingPath>>() {}.type
+                gson.fromJson<List<DrawingPath>>(json, type)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    val hasDrawing = drawingPaths != null && drawingPaths.isNotEmpty()
 
     Card(
         modifier = Modifier
@@ -203,9 +225,21 @@ fun NoteCard(
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Mostrar preview del dibujo si existe
+            if (hasDrawing && drawingPaths != null) {
+                DrawingPreview(
+                    paths = drawingPaths,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Overlay con info de la nota
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(
+                        if (hasDrawing) Color.White.copy(alpha = 0.85f) else Color.Transparent
+                    )
                     .padding(10.dp)
             ) {
                 if (note.title.isNotEmpty()) {
@@ -221,7 +255,7 @@ fun NoteCard(
                     Spacer(modifier = Modifier.height(2.dp))
                 }
 
-                if (!hasDrawing) {
+                if (!hasDrawing && note.content.isNotEmpty()) {
                     // Solo mostrar contenido de texto si NO hay dibujo
                     Text(
                         text = note.content,
@@ -242,26 +276,68 @@ fun NoteCard(
                     fontSize = 12.sp
                 )
             }
+        }
+    }
+}
 
-            // Indicador visual de dibujo (esquina superior derecha)
-            if (hasDrawing) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFFFA726))
-                ) {
-                    Icon(
-                        Icons.Default.Description,
-                        contentDescription = "Dibujo",
-                        tint = Color.White,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(24.dp)
-                    )
+@Composable
+fun DrawingPreview(
+    paths: List<DrawingPath>,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        // Calcular bounding box del dibujo
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = Float.MIN_VALUE
+        var maxY = Float.MIN_VALUE
+
+        paths.forEach { drawingPath ->
+            drawingPath.points.forEach { point ->
+                if (point.x < minX) minX = point.x
+                if (point.y < minY) minY = point.y
+                if (point.x > maxX) maxX = point.x
+                if (point.y > maxY) maxY = point.y
+            }
+        }
+
+        // Calcular escala para que quepa en la vista
+        val drawingWidth = maxX - minX
+        val drawingHeight = maxY - minY
+        val scale = minOf(
+            size.width / drawingWidth,
+            size.height / drawingHeight
+        ) * 0.8f // 80% para dejar margen
+
+        // Calcular offset para centrar
+        val offsetX = (size.width - drawingWidth * scale) / 2 - minX * scale
+        val offsetY = (size.height - drawingHeight * scale) / 2 - minY * scale
+
+        // Dibujar paths escalados y centrados
+        paths.forEach { drawingPath ->
+            val path = Path()
+            val scaledPoints = drawingPath.points.map { point ->
+                Offset(
+                    x = point.x * scale + offsetX,
+                    y = point.y * scale + offsetY
+                )
+            }
+
+            if (scaledPoints.isNotEmpty()) {
+                path.moveTo(scaledPoints[0].x, scaledPoints[0].y)
+                for (i in 1 until scaledPoints.size) {
+                    path.lineTo(scaledPoints[i].x, scaledPoints[i].y)
                 }
+
+                drawPath(
+                    path = path,
+                    color = Color(drawingPath.color.toULong()),
+                    style = Stroke(
+                        width = drawingPath.strokeWidth * scale,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    )
+                )
             }
         }
     }
