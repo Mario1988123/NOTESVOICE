@@ -92,6 +92,7 @@ fun NoteEditorScreen(
 
     var noteCreationTime by remember { mutableStateOf<Long?>(null) }
     var alreadyDrawnCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var shouldKeepListening by remember { mutableStateOf(false) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -108,6 +109,7 @@ fun NoteEditorScreen(
         hasAudioPermission = isGranted
         if (isGranted) {
             voiceManager.startListening()
+            shouldKeepListening = true
         }
     }
 
@@ -141,6 +143,7 @@ fun NoteEditorScreen(
 
                             // PARAR el micrófono después de detectar carta válida
                             voiceManager.stopListening()
+                            shouldKeepListening = false
                         }
                     }
                 }
@@ -153,6 +156,15 @@ fun NoteEditorScreen(
                 voiceManager.clearRecognizedText()
                 // NO ESCRIBIR NADA - solo seguir escuchando
             }
+        }
+    }
+
+    // Reiniciar micrófono automáticamente cuando hay error de timeout
+    LaunchedEffect(error, shouldKeepListening, isListening) {
+        if (shouldKeepListening && error != null && !isListening) {
+            android.util.Log.d("NoteEditor", "Error detectado: $error, reiniciando micrófono")
+            kotlinx.coroutines.delay(500)
+            voiceManager.startListening()
         }
     }
 
@@ -185,8 +197,10 @@ fun NoteEditorScreen(
                         if (hasAudioPermission) {
                             if (isListening) {
                                 voiceManager.stopListening()
+                                shouldKeepListening = false
                             } else {
                                 voiceManager.startListening()
+                                shouldKeepListening = true
                             }
                         } else {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
