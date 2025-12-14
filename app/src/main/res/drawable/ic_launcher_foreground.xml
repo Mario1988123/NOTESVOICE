@@ -34,9 +34,25 @@
                            M28,84 L80,84 L80,86 L28,86 Z
                            M28,92 L80,92 L80,94 L28,94 Z" />
 
-        <!-- Línea vertical roja (margen izquierdo) más gruesa -->
+        <!-- Lápiz diagonal -->
+        <!-- Cuerpo del lápiz (madera amarilla) -->
         <path
-            android:fillColor="#FF5252"
-            android:pathData="M30,22 L32,22 L32,98 L30,98 Z" />
+            android:fillColor="#FFD54F"
+            android:pathData="M65,85 L75,75 L77,77 L67,87 Z" />
+
+        <!-- Parte de grafito (punta negra) -->
+        <path
+            android:fillColor="#424242"
+            android:pathData="M75,75 L77,73 L79,75 L77,77 Z" />
+
+        <!-- Banda metálica -->
+        <path
+            android:fillColor="#90A4AE"
+            android:pathData="M65,85 L67,87 L65,89 L63,87 Z" />
+
+        <!-- Goma de borrar (rosa) -->
+        <path
+            android:fillColor="#FF8A80"
+            android:pathData="M63,87 L65,89 L63,91 L61,89 Z" />
     </group>
 </vector>

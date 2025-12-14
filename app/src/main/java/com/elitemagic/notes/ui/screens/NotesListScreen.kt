@@ -448,6 +448,17 @@ fun PredictionModeConfigDialog(
                         )
                     }
                 }
+
+                // Firma al final del diálogo
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Creado por Elitemagic",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         },
         confirmButton = {
