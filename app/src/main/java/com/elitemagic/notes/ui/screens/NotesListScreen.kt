@@ -118,27 +118,21 @@ fun NotesListScreen(
             NavigationBar(
                 containerColor = Color.White
             ) {
-                // Notas con pulsación larga para configuración
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .combinedClickable(
-                            onClick = { },
-                            onLongClick = { showConfigDialog = true }
-                        )
-                ) {
-                    NavigationBarItem(
-                        selected = true,
-                        onClick = { },
-                        icon = {
-                            Icon(
-                                Icons.Default.Description,
-                                contentDescription = "Notas"
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { },
+                    icon = {
+                        Icon(
+                            Icons.Default.Description,
+                            contentDescription = "Notas",
+                            modifier = Modifier.combinedClickable(
+                                onClick = { },
+                                onLongClick = { showConfigDialog = true }
                             )
-                        },
-                        label = { Text("Notas") }
-                    )
-                }
+                        )
+                    },
+                    label = { Text("Notas") }
+                )
 
                 NavigationBarItem(
                     selected = false,
