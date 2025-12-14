@@ -82,6 +82,9 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
                 onNewNoteClick = {
                     navController.navigate("note_editor/new")
                 },
+                onNewNoteWithVoice = {
+                    navController.navigate("note_editor/new?autoStartVoice=true")
+                },
                 onDeleteNote = { note ->
                     viewModel.deleteNote(note.id)
                 },
@@ -103,10 +106,18 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
         }
 
         composable(
-            route = "note_editor/{noteId}",
-            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+            route = "note_editor/{noteId}?autoStartVoice={autoStartVoice}",
+            arguments = listOf(
+                navArgument("noteId") { type = NavType.StringType },
+                navArgument("autoStartVoice") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
         ) { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId")
+            val autoStartVoice = backStackEntry.arguments?.getBoolean("autoStartVoice") ?: false
+
             val note = if (noteId != "new") {
                 viewModel.getNoteById(noteId ?: "")
             } else {
@@ -116,6 +127,7 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
             NoteEditorScreen(
                 note = note,
                 voiceManager = voiceManager,
+                autoStartVoice = autoStartVoice,
                 onSave = { savedNote ->
                     if (note == null) {
                         viewModel.addNote(savedNote)

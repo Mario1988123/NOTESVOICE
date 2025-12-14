@@ -51,6 +51,7 @@ fun NotesListScreen(
     notes: List<Note>,
     onNoteClick: (Note) -> Unit,
     onNewNoteClick: () -> Unit,
+    onNewNoteWithVoice: () -> Unit = {},
     onDeleteNote: (Note) -> Unit = {},
     onNavigateToTasks: () -> Unit = {},
     voiceManager: VoiceRecognitionManager? = null
@@ -80,15 +81,15 @@ fun NotesListScreen(
                 actions = {
                     IconButton(onClick = {
                         if (isPredictionMode) {
-                            // En modo predicción, el icono de carpeta actúa como micrófono
-                            onNewNoteClick()
+                            // En modo predicción, abrir nota con micrófono automático
+                            onNewNoteWithVoice()
                         } else {
                             // En modo normal, abrir carpetas (no implementado)
                         }
                     }) {
                         Icon(
-                            if (isPredictionMode) Icons.Default.Mic else Icons.Default.Folder,
-                            contentDescription = if (isPredictionMode) "Crear nota predicción" else "Carpetas"
+                            Icons.Default.Folder,
+                            contentDescription = "Carpetas"
                         )
                     }
                     IconButton(onClick = { /* TODO: Open settings */ }) {
