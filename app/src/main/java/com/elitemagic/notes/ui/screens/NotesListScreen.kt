@@ -343,3 +343,295 @@ fun PredictionModeConfigDialog(
                     )
                 }
 
+                if (isPredictionEnabled) {
+                    Divider()
+
+                    Text(
+                        "Selecciona la fecha y hora:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    // Selector de fecha
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Día
+                        OutlinedTextField(
+                            value = selectedDay.toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 1..31) selectedDay = it
+                                }
+                            },
+                            label = { Text("Día") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Mes
+                        OutlinedTextField(
+                            value = (selectedMonth + 1).toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 1..12) selectedMonth = it - 1
+                                }
+                            },
+                            label = { Text("Mes") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Año
+                        OutlinedTextField(
+                            value = selectedYear.toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 2020..2030) selectedYear = it
+                                }
+                            },
+                            label = { Text("Año") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    // Selector de hora
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Hora
+                        OutlinedTextField(
+                            value = selectedHour.toString().padStart(2, '0'),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 0..23) selectedHour = it
+                                }
+                            },
+                            label = { Text("Hora") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Minutos
+                        OutlinedTextField(
+                            value = selectedMinute.toString().padStart(2, '0'),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 0..59) selectedMinute = it
+                                }
+                            },
+                            label = { Text("Min") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    // Vista previa
+                    val previewCalendar = Calendar.getInstance().apply {
+                        set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                    }
+                    val dateFormat = SimpleDateFormat("d MMMM yyyy HH:mm", Locale("es", "ES"))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Vista previa:\n${dateFormat.format(previewCalendar.time)}",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    predictionRepo.setPredictionMode(isPredictionEnabled)
+
+                    if (isPredictionEnabled) {
+                        val timestamp = Calendar.getInstance().apply {
+                            set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+
+                        predictionRepo.setCustomTimestamp(timestamp)
+                    }
+
+                    onDismiss()
+                }
+            ) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun NoteCard(
+    note: Note,
+    onClick: () -> Unit
+) {
+    // Formato: "14 diciembre 10:30"
+    val dateFormat = SimpleDateFormat("d MMMM HH:mm", Locale("es", "ES"))
+    val formattedDate = dateFormat.format(Date(note.updatedAt))
+
+    // Parsear paths del dibujo si existen
+    val drawingPaths = remember(note.drawingData) {
+        note.drawingData?.let { json ->
+            try {
+                val gson = Gson()
+                val type = object : TypeToken<List<DrawingPath>>() {}.type
+                gson.fromJson<List<DrawingPath>>(json, type)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    val hasDrawing = drawingPaths != null && drawingPaths.isNotEmpty()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 80.dp, max = 140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Mostrar preview del dibujo si existe
+            if (hasDrawing && drawingPaths != null) {
+                DrawingPreview(
+                    paths = drawingPaths,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Overlay con info de la nota
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (hasDrawing) Color.White.copy(alpha = 0.85f) else Color.Transparent
+                    )
+                    .padding(10.dp)
+            ) {
+                if (note.title.isNotEmpty()) {
+                    Text(
+                        text = note.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 15.sp,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+
+                if (!hasDrawing && note.content.isNotEmpty()) {
+                    // Solo mostrar contenido de texto si NO hay dibujo
+                    Text(
+                        text = note.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 13.sp,
+                        maxLines = if (note.title.isEmpty()) 6 else 4,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.DarkGray
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DrawingPreview(
+    paths: List<DrawingPath>,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        // Calcular bounding box del dibujo
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = Float.MIN_VALUE
+        var maxY = Float.MIN_VALUE
+
+        paths.forEach { drawingPath ->
+            drawingPath.points.forEach { point ->
+                if (point.x < minX) minX = point.x
+                if (point.y < minY) minY = point.y
+                if (point.x > maxX) maxX = point.x
+                if (point.y > maxY) maxY = point.y
+            }
+        }
+
+        // Calcular escala para que quepa en la vista
+        val drawingWidth = maxX - minX
+        val drawingHeight = maxY - minY
+        val scale = minOf(
+            size.width / drawingWidth,
+            size.height / drawingHeight
+        ) * 0.8f // 80% para dejar margen
+
+        // Calcular offset para centrar
+        val offsetX = (size.width - drawingWidth * scale) / 2 - minX * scale
+        val offsetY = (size.height - drawingHeight * scale) / 2 - minY * scale
+
+        // Dibujar paths escalados y centrados
+        paths.forEach { drawingPath ->
+            val path = Path()
+            val scaledPoints = drawingPath.points.map { point ->
+                Offset(
+                    x = point.x * scale + offsetX,
+                    y = point.y * scale + offsetY
+                )
+            }
+
+            if (scaledPoints.isNotEmpty()) {
+                path.moveTo(scaledPoints[0].x, scaledPoints[0].y)
+                for (i in 1 until scaledPoints.size) {
+                    path.lineTo(scaledPoints[i].x, scaledPoints[i].y)
+                }
+
+                drawPath(
+                    path = path,
+                    color = Color(drawingPath.color.toULong()),
+                    style = Stroke(
+                        width = drawingPath.strokeWidth * scale,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    )
+                )
+            }
+        }
+    }
+}
+
