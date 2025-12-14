@@ -76,6 +76,19 @@ fun TasksScreen(
         )
     } else {
         Scaffold(
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { /* No hace nada - solo visual */ },
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Nueva tarea",
+                        tint = Color.White
+                    )
+                }
+            },
             topBar = {
                 TopAppBar(
                     title = {
