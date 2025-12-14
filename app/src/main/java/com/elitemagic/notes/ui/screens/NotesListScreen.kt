@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
@@ -34,6 +35,7 @@ fun NotesListScreen(
     notes: List<Note>,
     onNoteClick: (Note) -> Unit,
     onNewNoteClick: () -> Unit,
+    onDeleteNote: (Note) -> Unit = {},
     onNavigateToTasks: () -> Unit = {}
 ) {
     Scaffold(
@@ -125,10 +127,49 @@ fun NotesListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(notes) { note ->
-                    NoteCard(
-                        note = note,
-                        onClick = { onNoteClick(note) }
+                items(notes, key = { it.id }) { note ->
+                    val dismissState = rememberDismissState(
+                        confirmValueChange = {
+                            if (it == DismissValue.DismissedToStart || it == DismissValue.DismissedToEnd) {
+                                onDeleteNote(note)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    )
+
+                    SwipeToDismiss(
+                        state = dismissState,
+                        background = {
+                            val color = when (dismissState.dismissDirection) {
+                                DismissDirection.StartToEnd, DismissDirection.EndToStart -> Color.Red
+                                else -> Color.Transparent
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(color, RoundedCornerShape(12.dp))
+                                    .padding(16.dp),
+                                contentAlignment = if (dismissState.dismissDirection == DismissDirection.StartToEnd) {
+                                    Alignment.CenterStart
+                                } else {
+                                    Alignment.CenterEnd
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Borrar",
+                                    tint = Color.White
+                                )
+                            }
+                        },
+                        dismissContent = {
+                            NoteCard(
+                                note = note,
+                                onClick = { onNoteClick(note) }
+                            )
+                        }
                     )
                 }
             }

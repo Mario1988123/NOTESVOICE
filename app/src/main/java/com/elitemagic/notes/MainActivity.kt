@@ -82,6 +82,9 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
                 onNewNoteClick = {
                     navController.navigate("note_editor/new")
                 },
+                onDeleteNote = { note ->
+                    viewModel.deleteNote(note)
+                },
                 onNavigateToTasks = {
                     navController.navigate("tasks")
                 }

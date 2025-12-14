@@ -60,7 +60,6 @@ fun NoteEditorScreen(
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
-    var isDrawingMode by remember { mutableStateOf(false) }
 
     // Load existing drawing paths from note if available
     var drawingPaths by remember {
@@ -75,6 +74,9 @@ fun NoteEditorScreen(
             } ?: emptyList()
         )
     }
+
+    // Si la nota tiene dibujo, activar modo dibujo automáticamente
+    var isDrawingMode by remember { mutableStateOf(drawingPaths.isNotEmpty()) }
     var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
 
     // Drawing options
@@ -124,21 +126,17 @@ fun NoteEditorScreen(
                 // Es una carta - NO escribir, solo dibujar
                 detectedCards.forEach { card ->
                     if (!alreadyDrawnCards.contains(card)) {
-                        // Intentar cargar el dibujo guardado del menú oculto
+                        // SOLO cargar si existe el dibujo guardado por el usuario
                         val savedPaths = cardsRepository.getCardDrawing(card)
 
                         if (savedPaths != null && savedPaths.isNotEmpty()) {
                             // Usar el dibujo guardado por el usuario
                             drawingPaths = drawingPaths + savedPaths
-                        } else {
-                            // Fallback: usar dibujo automático
-                            val cardPath = createCardDrawing(card)
-                            drawingPaths = drawingPaths + cardPath
+                            alreadyDrawnCards = alreadyDrawnCards + card
+                            // Activar modo dibujo automáticamente
+                            isDrawingMode = true
                         }
-
-                        alreadyDrawnCards = alreadyDrawnCards + card
-                        // Activar modo dibujo automáticamente
-                        isDrawingMode = true
+                        // Si NO existe dibujo guardado, NO hacer nada (no auto-generar)
                     }
                 }
             } else {
