@@ -87,7 +87,8 @@ fun NotesApp(voiceManager: VoiceRecognitionManager) {
                 },
                 onNavigateToTasks = {
                     navController.navigate("tasks")
-                }
+                },
+                voiceManager = voiceManager
             )
         }
 

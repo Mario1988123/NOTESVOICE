@@ -1,8 +1,10 @@
 package com.elitemagic.notes.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,27 +30,43 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elitemagic.notes.data.PredictionModeRepository
 import com.elitemagic.notes.model.DrawingPath
 import com.elitemagic.notes.model.DrawingPoint
 import com.elitemagic.notes.model.Note
+import com.elitemagic.notes.voice.VoiceRecognitionManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NotesListScreen(
     notes: List<Note>,
     onNoteClick: (Note) -> Unit,
     onNewNoteClick: () -> Unit,
     onDeleteNote: (Note) -> Unit = {},
-    onNavigateToTasks: () -> Unit = {}
+    onNavigateToTasks: () -> Unit = {},
+    voiceManager: VoiceRecognitionManager? = null
 ) {
+    val context = LocalContext.current
+    val predictionRepo = remember { PredictionModeRepository(context) }
+
+    var showConfigDialog by remember { mutableStateOf(false) }
+    var isPredictionMode by remember { mutableStateOf(predictionRepo.isPredictionMode()) }
+
+    // Actualizar el estado cuando cambia el modo
+    LaunchedEffect(showConfigDialog) {
+        if (!showConfigDialog) {
+            isPredictionMode = predictionRepo.isPredictionMode()
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,8 +78,18 @@ fun NotesListScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Open folder view */ }) {
-                        Icon(Icons.Default.Folder, contentDescription = "Carpetas")
+                    IconButton(onClick = {
+                        if (isPredictionMode) {
+                            // En modo predicción, el icono de carpeta actúa como micrófono
+                            onNewNoteClick()
+                        } else {
+                            // En modo normal, abrir carpetas (no implementado)
+                        }
+                    }) {
+                        Icon(
+                            if (isPredictionMode) Icons.Default.Mic else Icons.Default.Folder,
+                            contentDescription = if (isPredictionMode) "Crear nota predicción" else "Carpetas"
+                        )
                     }
                     IconButton(onClick = { /* TODO: Open settings */ }) {
                         Icon(Icons.Default.Settings, contentDescription = "Configuración")
@@ -89,17 +118,28 @@ fun NotesListScreen(
             NavigationBar(
                 containerColor = Color.White
             ) {
-                NavigationBarItem(
-                    selected = true,
-                    onClick = { },
-                    icon = {
-                        Icon(
-                            Icons.Default.Description,
-                            contentDescription = "Notas"
+                // Notas con pulsación larga para configuración
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .combinedClickable(
+                            onClick = { },
+                            onLongClick = { showConfigDialog = true }
                         )
-                    },
-                    label = { Text("Notas") }
-                )
+                ) {
+                    NavigationBarItem(
+                        selected = true,
+                        onClick = { },
+                        icon = {
+                            Icon(
+                                Icons.Default.Description,
+                                contentDescription = "Notas"
+                            )
+                        },
+                        label = { Text("Notas") }
+                    )
+                }
+
                 NavigationBarItem(
                     selected = false,
                     onClick = onNavigateToTasks,
@@ -184,7 +224,194 @@ fun NotesListScreen(
                 }
             }
         }
+
+        // Diálogo de configuración del modo predicción
+        if (showConfigDialog) {
+            PredictionModeConfigDialog(
+                predictionRepo = predictionRepo,
+                onDismiss = { showConfigDialog = false }
+            )
+        }
     }
+}
+
+@Composable
+fun PredictionModeConfigDialog(
+    predictionRepo: PredictionModeRepository,
+    onDismiss: () -> Unit
+) {
+    var isPredictionEnabled by remember { mutableStateOf(predictionRepo.isPredictionMode()) }
+    val currentTimestamp = predictionRepo.getCustomTimestamp()
+    val calendar = remember { Calendar.getInstance().apply { timeInMillis = currentTimestamp } }
+
+    var selectedYear by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
+    var selectedMonth by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
+    var selectedDay by remember { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH)) }
+    var selectedHour by remember { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY)) }
+    var selectedMinute by remember { mutableStateOf(calendar.get(Calendar.MINUTE)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Modo Predicción",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Switch para activar/desactivar modo predicción
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Activar modo predicción")
+                    Switch(
+                        checked = isPredictionEnabled,
+                        onCheckedChange = { isPredictionEnabled = it }
+                    )
+                }
+
+                if (isPredictionEnabled) {
+                    Divider()
+
+                    Text(
+                        "Selecciona la fecha y hora:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    // Selector de fecha
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Día
+                        OutlinedTextField(
+                            value = selectedDay.toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 1..31) selectedDay = it
+                                }
+                            },
+                            label = { Text("Día") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Mes
+                        OutlinedTextField(
+                            value = (selectedMonth + 1).toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 1..12) selectedMonth = it - 1
+                                }
+                            },
+                            label = { Text("Mes") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Año
+                        OutlinedTextField(
+                            value = selectedYear.toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 2020..2030) selectedYear = it
+                                }
+                            },
+                            label = { Text("Año") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    // Selector de hora
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Hora
+                        OutlinedTextField(
+                            value = selectedHour.toString().padStart(2, '0'),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 0..23) selectedHour = it
+                                }
+                            },
+                            label = { Text("Hora") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        // Minutos
+                        OutlinedTextField(
+                            value = selectedMinute.toString().padStart(2, '0'),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let {
+                                    if (it in 0..59) selectedMinute = it
+                                }
+                            },
+                            label = { Text("Min") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    // Vista previa
+                    val previewCalendar = Calendar.getInstance().apply {
+                        set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                    }
+                    val dateFormat = SimpleDateFormat("d MMMM yyyy HH:mm", Locale("es", "ES"))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Vista previa:\n${dateFormat.format(previewCalendar.time)}",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    predictionRepo.setPredictionMode(isPredictionEnabled)
+
+                    if (isPredictionEnabled) {
+                        val timestamp = Calendar.getInstance().apply {
+                            set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+
+                        predictionRepo.setCustomTimestamp(timestamp)
+                    }
+
+                    onDismiss()
+                }
+            ) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable

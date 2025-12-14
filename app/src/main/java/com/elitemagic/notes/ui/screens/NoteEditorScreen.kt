@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.elitemagic.notes.data.PredictionModeRepository
 import com.elitemagic.notes.model.DrawingPath
 import com.elitemagic.notes.model.DrawingPoint
 import com.elitemagic.notes.model.Note
@@ -57,6 +58,7 @@ fun NoteEditorScreen(
 
     val gson = remember { Gson() }
     val cardsRepository = remember { com.elitemagic.notes.data.CardsRepository(context) }
+    val predictionRepo = remember { PredictionModeRepository(context) }
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
@@ -215,8 +217,11 @@ fun NoteEditorScreen(
                         }
 
                         // Use microphone start time if available (for magic trick timing)
-                        val creationTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
-                        val updateTimestamp = System.currentTimeMillis()
+                        // Or use custom timestamp if prediction mode is active
+                        val creationTimestamp = noteCreationTime
+                            ?: note?.createdAt
+                            ?: predictionRepo.getTimestampForNewNote()
+                        val updateTimestamp = predictionRepo.getTimestampForNewNote()
 
                         val noteToSave = note?.copy(
                             title = title,
@@ -274,8 +279,8 @@ fun NoteEditorScreen(
                     .padding(horizontal = 16.dp)
             )
 
-            // Mostrar fecha/hora actual de la nota
-            val displayTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
+            // Mostrar fecha/hora actual de la nota (o personalizada en modo predicción)
+            val displayTimestamp = noteCreationTime ?: note?.createdAt ?: predictionRepo.getTimestampForNewNote()
             val sdf = SimpleDateFormat("d 'de' MMMM HH:mm", Locale("es", "ES"))
             val dateStr = sdf.format(Date(displayTimestamp))
             val charCount = content.length
