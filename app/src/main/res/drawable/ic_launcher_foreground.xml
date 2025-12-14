@@ -34,25 +34,33 @@
                            M28,84 L80,84 L80,86 L28,86 Z
                            M28,92 L80,92 L80,94 L28,94 Z" />
 
-        <!-- Lápiz grande diagonal -->
+        <!-- Lápiz GRANDE diagonal que cruza el bloc -->
         <!-- Cuerpo del lápiz (madera amarilla-naranja) -->
         <path
             android:fillColor="#FFB74D"
-            android:pathData="M55,95 L70,80 L73,83 L58,98 Z" />
+            android:pathData="M35,90 L65,60 L71,66 L41,96 Z" />
 
-        <!-- Parte de grafito (punta negra grande) -->
+        <!-- Punta de grafito (negra) -->
         <path
             android:fillColor="#424242"
-            android:pathData="M70,80 L75,75 L78,78 L73,83 Z" />
+            android:pathData="M65,60 L73,52 L79,58 L71,66 Z" />
 
-        <!-- Banda metálica (más grande) -->
+        <!-- Banda metálica -->
         <path
-            android:fillColor="#78909C"
-            android:pathData="M52,98 L55,95 L58,98 L55,101 Z" />
+            android:fillColor="#90A4AE"
+            android:pathData="M30,95 L35,90 L41,96 L36,101 Z" />
 
-        <!-- Goma de borrar (rosa grande) -->
+        <!-- Goma de borrar (rosa) -->
         <path
             android:fillColor="#FF8A80"
-            android:pathData="M49,101 L52,98 L55,101 L52,104 Z" />
+            android:pathData="M25,100 L30,95 L36,101 L31,106 Z" />
+
+        <!-- Contorno del lápiz para que destaque más -->
+        <path
+            android:fillColor="none"
+            android:strokeColor="#757575"
+            android:strokeWidth="0.5"
+            android:pathData="M35,90 L65,60 L71,66 L41,96 Z
+                           M65,60 L73,52 L79,58 L71,66 Z" />
     </group>
 </vector>

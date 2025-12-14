@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -63,6 +65,7 @@ fun NotesListScreen(
     val gson = remember { Gson() }
 
     var showConfigDialog by remember { mutableStateOf(false) }
+    var showInstructionsDialog by remember { mutableStateOf(false) }
     var isPredictionMode by remember { mutableStateOf(predictionRepo.isPredictionMode()) }
     var isListeningForCard by remember { mutableStateOf(false) }
 
@@ -163,8 +166,15 @@ fun NotesListScreen(
                             tint = if (isPredictionMode && isListeningForCard) Color.Red else Color.Gray
                         )
                     }
-                    IconButton(onClick = { /* TODO: Open settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configuración")
+                    IconButton(onClick = { }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Configuración",
+                            modifier = Modifier.combinedClickable(
+                                onClick = { },
+                                onLongClick = { showInstructionsDialog = true }
+                            )
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -298,6 +308,13 @@ fun NotesListScreen(
                 onDismiss = { showConfigDialog = false }
             )
         }
+
+        // Diálogo de instrucciones
+        if (showInstructionsDialog) {
+            InstructionsDialog(
+                onDismiss = { showInstructionsDialog = false }
+            )
+        }
     }
 }
 
@@ -310,11 +327,12 @@ fun PredictionModeConfigDialog(
     val currentTimestamp = predictionRepo.getCustomTimestamp()
     val calendar = remember { Calendar.getInstance().apply { timeInMillis = currentTimestamp } }
 
-    var selectedYear by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
-    var selectedMonth by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
-    var selectedDay by remember { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH)) }
-    var selectedHour by remember { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY)) }
-    var selectedMinute by remember { mutableStateOf(calendar.get(Calendar.MINUTE)) }
+    // Usar String para permitir edición fácil
+    var dayText by remember { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH).toString()) }
+    var monthText by remember { mutableStateOf((calendar.get(Calendar.MONTH) + 1).toString()) }
+    var yearText by remember { mutableStateOf(calendar.get(Calendar.YEAR).toString()) }
+    var hourText by remember { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')) }
+    var minuteText by remember { mutableStateOf(calendar.get(Calendar.MINUTE).toString().padStart(2, '0')) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -360,12 +378,8 @@ fun PredictionModeConfigDialog(
                     ) {
                         // Día
                         OutlinedTextField(
-                            value = selectedDay.toString(),
-                            onValueChange = { value ->
-                                value.toIntOrNull()?.let {
-                                    if (it in 1..31) selectedDay = it
-                                }
-                            },
+                            value = dayText,
+                            onValueChange = { dayText = it.filter { char -> char.isDigit() }.take(2) },
                             label = { Text("Día") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -373,12 +387,8 @@ fun PredictionModeConfigDialog(
 
                         // Mes
                         OutlinedTextField(
-                            value = (selectedMonth + 1).toString(),
-                            onValueChange = { value ->
-                                value.toIntOrNull()?.let {
-                                    if (it in 1..12) selectedMonth = it - 1
-                                }
-                            },
+                            value = monthText,
+                            onValueChange = { monthText = it.filter { char -> char.isDigit() }.take(2) },
                             label = { Text("Mes") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -386,12 +396,8 @@ fun PredictionModeConfigDialog(
 
                         // Año
                         OutlinedTextField(
-                            value = selectedYear.toString(),
-                            onValueChange = { value ->
-                                value.toIntOrNull()?.let {
-                                    if (it in 2020..2030) selectedYear = it
-                                }
-                            },
+                            value = yearText,
+                            onValueChange = { yearText = it.filter { char -> char.isDigit() }.take(4) },
                             label = { Text("Año") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -405,12 +411,8 @@ fun PredictionModeConfigDialog(
                     ) {
                         // Hora
                         OutlinedTextField(
-                            value = selectedHour.toString().padStart(2, '0'),
-                            onValueChange = { value ->
-                                value.toIntOrNull()?.let {
-                                    if (it in 0..23) selectedHour = it
-                                }
-                            },
+                            value = hourText,
+                            onValueChange = { hourText = it.filter { char -> char.isDigit() }.take(2) },
                             label = { Text("Hora") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -418,12 +420,8 @@ fun PredictionModeConfigDialog(
 
                         // Minutos
                         OutlinedTextField(
-                            value = selectedMinute.toString().padStart(2, '0'),
-                            onValueChange = { value ->
-                                value.toIntOrNull()?.let {
-                                    if (it in 0..59) selectedMinute = it
-                                }
-                            },
+                            value = minuteText,
+                            onValueChange = { minuteText = it.filter { char -> char.isDigit() }.take(2) },
                             label = { Text("Min") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -431,8 +429,14 @@ fun PredictionModeConfigDialog(
                     }
 
                     // Vista previa
+                    val previewDay = dayText.toIntOrNull() ?: 1
+                    val previewMonth = (monthText.toIntOrNull() ?: 1) - 1
+                    val previewYear = yearText.toIntOrNull() ?: 2024
+                    val previewHour = hourText.toIntOrNull() ?: 0
+                    val previewMinute = minuteText.toIntOrNull() ?: 0
+
                     val previewCalendar = Calendar.getInstance().apply {
-                        set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                        set(previewYear, previewMonth, previewDay, previewHour, previewMinute, 0)
                     }
                     val dateFormat = SimpleDateFormat("d MMMM yyyy HH:mm", Locale("es", "ES"))
 
@@ -449,17 +453,6 @@ fun PredictionModeConfigDialog(
                         )
                     }
                 }
-
-                // Firma al final del diálogo
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Creado por Elitemagic",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
-                    fontSize = 10.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
             }
         },
         confirmButton = {
@@ -468,8 +461,14 @@ fun PredictionModeConfigDialog(
                     predictionRepo.setPredictionMode(isPredictionEnabled)
 
                     if (isPredictionEnabled) {
+                        val day = dayText.toIntOrNull() ?: 1
+                        val month = (monthText.toIntOrNull() ?: 1) - 1
+                        val year = yearText.toIntOrNull() ?: 2024
+                        val hour = hourText.toIntOrNull() ?: 0
+                        val minute = minuteText.toIntOrNull() ?: 0
+
                         val timestamp = Calendar.getInstance().apply {
-                            set(selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, 0)
+                            set(year, month, day, hour, minute, 0)
                             set(Calendar.SECOND, 0)
                             set(Calendar.MILLISECOND, 0)
                         }.timeInMillis
@@ -645,5 +644,96 @@ fun DrawingPreview(
             }
         }
     }
+}
+
+@Composable
+fun InstructionsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Instrucciones de Uso",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Modo Normal
+                Text(
+                    "🎴 Modo Normal",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    "1. Pulsa el botón + para crear una nota\n" +
+                    "2. Pulsa la 'T' para activar el micrófono\n" +
+                    "3. Di el nombre de una carta (ej: 'as de picas')\n" +
+                    "4. El micrófono se reinicia automáticamente hasta detectar una carta completa\n" +
+                    "5. Puedes dibujar pulsando el icono del lápiz",
+                    fontSize = 14.sp
+                )
+
+                Divider()
+
+                // Modo Predicción (Truco de Magia)
+                Text(
+                    "🎩 Modo Predicción (Truco de Magia)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    "1. Mantén pulsado el icono 'Notas' (abajo) durante 2 segundos\n" +
+                    "2. Activa el modo predicción y configura una fecha/hora pasada\n" +
+                    "3. Guarda la configuración\n" +
+                    "4. Pulsa el icono de carpeta (arriba) - se pondrá ROJO\n" +
+                    "5. El micrófono se activa automáticamente\n" +
+                    "6. Di una carta y se creará una nota con la fecha pasada\n" +
+                    "7. ¡La nota aparecerá como si la hubieras escrito en el pasado!",
+                    fontSize = 14.sp
+                )
+
+                Divider()
+
+                // Menús Ocultos
+                Text(
+                    "🔒 Menús Ocultos",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    "• Mantén pulsado 'Notas' → Modo Predicción\n" +
+                    "• Mantén pulsado ⚙️ → Este menú de ayuda\n" +
+                    "• Mantén pulsado 'Tareas' → Dibujar las 52 cartas",
+                    fontSize = 14.sp
+                )
+
+                Divider()
+
+                // Firma
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Creado por EliteMagic",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Entendido")
+            }
+        }
+    )
 }
 
