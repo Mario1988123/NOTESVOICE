@@ -182,8 +182,12 @@ fun NoteCard(
     note: Note,
     onClick: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("d MMMM", Locale("es", "ES"))
+    // Formato: "14 diciembre 10:30"
+    val dateFormat = SimpleDateFormat("d MMMM HH:mm", Locale("es", "ES"))
     val formattedDate = dateFormat.format(Date(note.updatedAt))
+
+    // Detectar si tiene dibujo
+    val hasDrawing = !note.drawingData.isNullOrEmpty()
 
     Card(
         modifier = Modifier
@@ -198,41 +202,67 @@ fun NoteCard(
             defaultElevation = 2.dp
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(10.dp)
-        ) {
-            if (note.title.isNotEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+            ) {
+                if (note.title.isNotEmpty()) {
+                    Text(
+                        text = note.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 15.sp,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+
+                if (!hasDrawing) {
+                    // Solo mostrar contenido de texto si NO hay dibujo
+                    Text(
+                        text = note.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 13.sp,
+                        maxLines = if (note.title.isEmpty()) 6 else 4,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.DarkGray
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
                 Text(
-                    text = note.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 15.sp,
-                    color = Color.Black
+                    text = formattedDate,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    fontSize = 12.sp
                 )
-                Spacer(modifier = Modifier.height(2.dp))
             }
 
-            Text(
-                text = note.content,
-                style = MaterialTheme.typography.bodyMedium,
-                fontSize = 13.sp,
-                maxLines = if (note.title.isEmpty()) 6 else 4,
-                overflow = TextOverflow.Ellipsis,
-                color = Color.DarkGray
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = formattedDate,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
+            // Indicador visual de dibujo (esquina superior derecha)
+            if (hasDrawing) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFA726))
+                ) {
+                    Icon(
+                        Icons.Default.Description,
+                        contentDescription = "Dibujo",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(24.dp)
+                    )
+                }
+            }
         }
     }
 }
