@@ -23,7 +23,7 @@ class NotesRepository(private val context: Context) {
         val notesJson = prefs.getString("notes", "[]")
         val type = object : TypeToken<List<Note>>() {}.type
         val loadedNotes: List<Note> = gson.fromJson(notesJson, type) ?: emptyList()
-        _notes.value = loadedNotes.sortedByDescending { it.updatedAt }
+        _notes.value = loadedNotes.sortedByDescending { it.createdAt }
     }
 
     private fun saveNotes() {
@@ -32,7 +32,7 @@ class NotesRepository(private val context: Context) {
     }
 
     fun addNote(note: Note) {
-        _notes.value = listOf(note) + _notes.value
+        _notes.value = (_notes.value + note).sortedByDescending { it.createdAt }
         saveNotes()
     }
 
@@ -40,7 +40,7 @@ class NotesRepository(private val context: Context) {
         val updatedNote = note.copy(updatedAt = System.currentTimeMillis())
         _notes.value = _notes.value.map {
             if (it.id == updatedNote.id) updatedNote else it
-        }.sortedByDescending { it.updatedAt }
+        }.sortedByDescending { it.createdAt }
         saveNotes()
     }
 

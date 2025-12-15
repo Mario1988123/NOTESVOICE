@@ -3,35 +3,56 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Notepad que llena todo el icono -->
     <group
-        android:scaleX="0.6"
-        android:scaleY="0.6"
-        android:translateX="21.6"
-        android:translateY="21.6">
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateX="10.8"
+        android:translateY="10.8">
 
-        <!-- Main notepad shape - simple and clean like Google Keep -->
-        <path
-            android:fillColor="#FFB300"
-            android:pathData="M35,20 L73,20 C75.2,20 77,21.8 77,24 L77,88 C77,90.2 75.2,92 73,92 L35,92 C32.8,92 31,90.2 31,88 L31,24 C31,21.8 32.8,20 35,20 Z" />
-
-        <!-- Horizontal lines on the notepad -->
+        <!-- Rectángulo principal del bloc blanco -->
         <path
             android:fillColor="#FFFFFF"
-            android:fillAlpha="0.3"
-            android:pathData="M37,35 L71,35 L71,36 L37,36 Z
-                           M37,42 L71,42 L71,43 L37,43 Z
-                           M37,49 L71,49 L71,50 L37,50 Z
-                           M37,56 L71,56 L71,57 L37,57 Z
-                           M37,63 L71,63 L71,64 L37,64 Z
-                           M37,70 L71,70 L71,71 L37,71 Z
-                           M37,77 L71,77 L71,78 L37,78 Z" />
+            android:pathData="M25,10 L83,10 C86,10 88,12 88,15 L88,98 C88,101 86,103 83,103 L25,103 C22,103 20,101 20,98 L20,15 C20,12 22,10 25,10 Z" />
 
-        <!-- Microphone icon (small, subtle) -->
+        <!-- Banda superior (encuadernación) -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M57,72 C59,72 60.5,70.5 60.5,68.5 L60.5,62 C60.5,60 59,58.5 57,58.5 C55,58.5 53.5,60 53.5,62 L53.5,68.5 C53.5,70.5 55,72 57,72 Z" />
+            android:fillColor="#E0E0E0"
+            android:pathData="M20,10 L88,10 L88,18 L20,18 Z" />
+
+        <!-- Líneas horizontales del bloc (más grandes) -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M62,66 L62,68.5 C62,71.5 59.5,74 56.5,74 C53.5,74 51,71.5 51,68.5 L51,66 L50,66 L50,68.5 C50,72.3 53,75.5 56.5,76 L56.5,78 L54,78 L54,79 L59,79 L59,78 L56.5,78 L56.5,76 C60,75.5 63,72.3 63,68.5 L63,66 L62,66 Z" />
+            android:fillColor="#D0D0D0"
+            android:pathData="M28,28 L80,28 L80,30 L28,30 Z
+                           M28,36 L80,36 L80,38 L28,38 Z
+                           M28,44 L80,44 L80,46 L28,46 Z
+                           M28,52 L80,52 L80,54 L28,54 Z
+                           M28,60 L80,60 L80,62 L28,62 Z
+                           M28,68 L80,68 L80,70 L28,70 Z
+                           M28,76 L80,76 L80,78 L28,78 Z
+                           M28,84 L80,84 L80,86 L28,86 Z
+                           M28,92 L80,92 L80,94 L28,94 Z" />
+
+        <!-- Lápiz GRANDE diagonal que cruza el bloc -->
+        <!-- Cuerpo del lápiz (madera amarilla-naranja) -->
+        <path
+            android:fillColor="#FFB74D"
+            android:pathData="M35,90 L65,60 L71,66 L41,96 Z" />
+
+        <!-- Punta de grafito (negra) -->
+        <path
+            android:fillColor="#424242"
+            android:pathData="M65,60 L73,52 L79,58 L71,66 Z" />
+
+        <!-- Banda metálica -->
+        <path
+            android:fillColor="#90A4AE"
+            android:pathData="M30,95 L35,90 L41,96 L36,101 Z" />
+
+        <!-- Goma de borrar (rosa) -->
+        <path
+            android:fillColor="#FF8A80"
+            android:pathData="M25,100 L30,95 L36,101 L31,106 Z" />
     </group>
 </vector>

@@ -26,12 +26,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.elitemagic.notes.data.PredictionModeRepository
 import com.elitemagic.notes.model.DrawingPath
 import com.elitemagic.notes.model.DrawingPoint
 import com.elitemagic.notes.model.Note
@@ -55,10 +57,11 @@ fun NoteEditorScreen(
     val scope = rememberCoroutineScope()
 
     val gson = remember { Gson() }
+    val cardsRepository = remember { com.elitemagic.notes.data.CardsRepository(context) }
+    val predictionRepo = remember { PredictionModeRepository(context) }
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var content by remember { mutableStateOf(note?.content ?: "") }
-    var isDrawingMode by remember { mutableStateOf(false) }
 
     // Load existing drawing paths from note if available
     var drawingPaths by remember {
@@ -73,6 +76,9 @@ fun NoteEditorScreen(
             } ?: emptyList()
         )
     }
+
+    // Si la nota tiene dibujo, activar modo dibujo automáticamente
+    var isDrawingMode by remember { mutableStateOf(drawingPaths.isNotEmpty()) }
     var currentPath by remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
 
     // Drawing options
@@ -86,6 +92,7 @@ fun NoteEditorScreen(
 
     var noteCreationTime by remember { mutableStateOf<Long?>(null) }
     var alreadyDrawnCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var shouldKeepListening by remember { mutableStateOf(false) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -102,43 +109,62 @@ fun NoteEditorScreen(
         hasAudioPermission = isGranted
         if (isGranted) {
             voiceManager.startListening()
+            shouldKeepListening = true
         }
     }
 
-    // ESCRIBIR texto reconocido
+    // DETECTAR Y PROCESAR comandos de cartas
     LaunchedEffect(recognizedText) {
         recognizedText?.let { text ->
-            android.util.Log.d("NoteEditor", "Writing text: $text")
+            android.util.Log.d("NoteEditor", "Texto reconocido: $text")
 
             // Guardar timestamp del micrófono
             microphoneStartTime?.let { timestamp ->
                 noteCreationTime = timestamp
             }
 
-            // Detectar si es una carta
+            // Detectar si es una carta COMPLETA (número + palo)
             val detectedCards = detectCardsInText(text)
 
             if (detectedCards.isNotEmpty()) {
-                // Es una carta - NO escribir, solo dibujar
+                // Es una carta COMPLETA - procesar
+                android.util.Log.d("NoteEditor", "Carta detectada: ${detectedCards.first()}")
                 detectedCards.forEach { card ->
                     if (!alreadyDrawnCards.contains(card)) {
-                        val cardPath = createCardDrawing(card)
-                        drawingPaths = drawingPaths + cardPath
-                        alreadyDrawnCards = alreadyDrawnCards + card
-                        // Activar modo dibujo automáticamente
-                        isDrawingMode = true
+                        // SOLO cargar si existe el dibujo guardado por el usuario
+                        val savedPaths = cardsRepository.getCardDrawing(card)
+
+                        if (savedPaths != null && savedPaths.isNotEmpty()) {
+                            // Usar el dibujo guardado por el usuario
+                            drawingPaths = drawingPaths + savedPaths
+                            alreadyDrawnCards = alreadyDrawnCards + card
+                            // Activar modo dibujo automáticamente
+                            isDrawingMode = true
+
+                            // PARAR el micrófono después de detectar carta válida
+                            voiceManager.stopListening()
+                            shouldKeepListening = false
+                        }
                     }
                 }
+                // Limpiar texto reconocido
+                voiceManager.clearRecognizedText()
             } else {
-                // NO es carta - escribir normalmente
-                content = if (content.isEmpty()) {
-                    text
-                } else {
-                    "$content $text"
-                }
+                // NO es carta completa - ignorar y seguir escuchando
+                android.util.Log.d("NoteEditor", "No es carta completa, ignorando: $text")
+                // Limpiar para seguir escuchando
+                voiceManager.clearRecognizedText()
+                // NO ESCRIBIR NADA - solo seguir escuchando
             }
+        }
+    }
 
-            voiceManager.clearRecognizedText()
+    // Reiniciar micrófono automáticamente cuando hay error de timeout
+    LaunchedEffect(error, shouldKeepListening, isListening) {
+        if (shouldKeepListening && error != null && !isListening) {
+            android.util.Log.d("NoteEditor", "Error detectado: $error, reiniciando micrófono")
+            kotlinx.coroutines.delay(500)
+            voiceManager.startListening()
         }
     }
 
@@ -171,8 +197,10 @@ fun NoteEditorScreen(
                         if (hasAudioPermission) {
                             if (isListening) {
                                 voiceManager.stopListening()
+                                shouldKeepListening = false
                             } else {
                                 voiceManager.startListening()
+                                shouldKeepListening = true
                             }
                         } else {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -203,8 +231,11 @@ fun NoteEditorScreen(
                         }
 
                         // Use microphone start time if available (for magic trick timing)
-                        val creationTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
-                        val updateTimestamp = System.currentTimeMillis()
+                        // Or use custom timestamp if prediction mode is active
+                        val creationTimestamp = noteCreationTime
+                            ?: note?.createdAt
+                            ?: predictionRepo.getTimestampForNewNote()
+                        val updateTimestamp = predictionRepo.getTimestampForNewNote()
 
                         val noteToSave = note?.copy(
                             title = title,
@@ -262,8 +293,8 @@ fun NoteEditorScreen(
                     .padding(horizontal = 16.dp)
             )
 
-            // Mostrar fecha/hora actual de la nota
-            val displayTimestamp = noteCreationTime ?: note?.createdAt ?: System.currentTimeMillis()
+            // Mostrar fecha/hora actual de la nota (o personalizada en modo predicción)
+            val displayTimestamp = noteCreationTime ?: note?.createdAt ?: predictionRepo.getTimestampForNewNote()
             val sdf = SimpleDateFormat("d 'de' MMMM HH:mm", Locale("es", "ES"))
             val dateStr = sdf.format(Date(displayTimestamp))
             val charCount = content.length
